@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 胶囊式 Tab：形状完全由全局样式控制，背景/文字由代码按选中态设置。 -->
+    <style name="Widget.Wardrobe.TabButton"
+        parent="Widget.Material3.Button.TextButton">
+        <item name="backgroundTint">@null</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">12sp</item>
+        <item name="strokeWidth">0dp</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.Material3.Corner.Full</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="iconPadding">4dp</item>
+        <item name="iconGravity">textStart</item>
+        <item name="iconTint">@color/tab_checked_text</item>
+    </style>
+</resources>

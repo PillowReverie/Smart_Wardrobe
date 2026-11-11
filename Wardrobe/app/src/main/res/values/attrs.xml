@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 自定义 AI 结果滚动区，用统一属性限制最大高度。 -->
+    <declare-styleable name="MaxHeightNestedScrollView">
+        <attr name="contentMaxHeight" format="dimension" />
+    </declare-styleable>
+</resources>

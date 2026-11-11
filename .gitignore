@@ -1,0 +1,27 @@
+# Android Studio / Gradle
+.idea/
+.gradle/
+**/.gradle/
+**/build/
+**/local.properties
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Signing secrets and binaries
+**/keystore.properties
+**/signing/*.jks
+**/signing/*.keystore
+
+# Built installation packages
+outputs/*.apk
+*.apk
+
+# Temporary analysis, screenshots and extracted artifacts
+work/
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+*.swp

@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="@dimen/space_s"
+    android:background="@drawable/bg_ai_plan"
+    android:orientation="vertical"
+    android:padding="@dimen/space_l">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/planTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+            android:textColor="?attr/colorPrimary"
+            tools:text="方案 1 · 通勤简约" />
+
+        <TextView
+            android:id="@+id/planBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/space_s"
+            android:background="@drawable/bg_ai_plan_badge"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:paddingStart="@dimen/space_s"
+            android:paddingTop="2dp"
+            android:paddingEnd="@dimen/space_s"
+            android:paddingBottom="2dp"
+            android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+            android:textColor="@color/md_on_secondary_container"
+            tools:text="经典套装推荐" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/planClassicSource"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:visibility="gone"
+        tools:text="经典来源：通勤三件套"
+        tools:visibility="visible" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/planItems"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/space_s"
+        android:clipToPadding="false"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:nestedScrollingEnabled="false"
+        android:overScrollMode="never"
+        tools:listitem="@layout/item_ai_clothing_thumb" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/space_s"
+        android:text="@string/ai_reason_label"
+        android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
+        android:textColor="?attr/colorOnSurfaceVariant" />
+
+    <TextView
+        android:id="@+id/planReason"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:lineSpacingExtra="4dp"
+        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+        android:textColor="?attr/colorOnSurface"
+        tools:text="清爽的蓝白配色适合今天的温度，整体利落又不失轻盈感。" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/savePlanButton"
+        style="@style/Widget.Wardrobe.Button.Text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end"
+        android:layout_marginTop="@dimen/space_xs"
+        android:minWidth="0dp"
+        android:text="@string/ai_save_plan"
+        app:icon="@drawable/ic_bookmark"
+        app:iconGravity="textStart" />
+</LinearLayout>

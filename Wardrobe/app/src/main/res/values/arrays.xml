@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 添加/编辑衣物时使用的类别选项。 -->
+    <string-array name="clothing_categories">
+        <item>@string/category_top</item>
+        <item>@string/category_bottom</item>
+        <item>@string/category_outerwear</item>
+        <item>@string/category_dress</item>
+        <item>@string/category_shoes</item>
+        <item>@string/category_accessory</item>
+    </string-array>
+</resources>

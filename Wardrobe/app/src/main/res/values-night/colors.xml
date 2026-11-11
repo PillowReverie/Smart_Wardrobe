@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 深色主题使用深邃蓝灰背景与更亮的蓝紫前景，保持高对比度。 -->
+    <color name="md_theme_primary">#D0BCFF</color>
+    <color name="md_theme_onPrimary">#381E72</color>
+    <color name="md_theme_primaryContainer">#5B21B6</color>
+    <color name="md_theme_onPrimaryContainer">#EDE9FE</color>
+    <color name="md_theme_secondary">#93C5FD</color>
+    <color name="md_theme_onSecondary">#1E3A8A</color>
+    <color name="md_theme_secondaryContainer">#1E40AF</color>
+    <color name="md_theme_onSecondaryContainer">#DBEAFE</color>
+    <color name="md_theme_tertiary">#A5B4FC</color>
+    <color name="md_theme_onTertiary">#312E81</color>
+    <color name="md_theme_tertiaryContainer">#3730A3</color>
+    <color name="md_theme_onTertiaryContainer">#E0E7FF</color>
+    <color name="md_theme_error">#FCA5A5</color>
+    <color name="md_theme_onError">#450A0A</color>
+    <color name="md_theme_errorContainer">#7F1D1D</color>
+    <color name="md_theme_onErrorContainer">#FEE2E2</color>
+    <color name="md_theme_background">#0F172A</color>
+    <color name="md_theme_onBackground">#F8FAFC</color>
+    <color name="md_theme_surface">#1E293B</color>
+    <color name="md_theme_onSurface">#F8FAFC</color>
+    <color name="md_theme_surfaceVariant">#334155</color>
+    <color name="md_theme_onSurfaceVariant">#CBD5E1</color>
+    <color name="md_theme_outline">#475569</color>
+    <color name="md_theme_outlineVariant">#334155</color>
+
+    <color name="app_background">@color/md_theme_background</color>
+    <color name="md_primary">@color/md_theme_primary</color>
+    <color name="md_on_primary">@color/md_theme_onPrimary</color>
+    <color name="md_primary_container">@color/md_theme_primaryContainer</color>
+    <color name="md_on_primary_container">@color/md_theme_onPrimaryContainer</color>
+    <color name="md_secondary">@color/md_theme_secondary</color>
+    <color name="md_on_secondary">@color/md_theme_onSecondary</color>
+    <color name="md_secondary_container">@color/md_theme_secondaryContainer</color>
+    <color name="md_on_secondary_container">@color/md_theme_onSecondaryContainer</color>
+    <color name="md_tertiary">@color/md_theme_tertiary</color>
+    <color name="md_on_tertiary">@color/md_theme_onTertiary</color>
+    <color name="md_tertiary_container">@color/md_theme_tertiaryContainer</color>
+    <color name="md_on_tertiary_container">@color/md_theme_onTertiaryContainer</color>
+    <color name="md_error">@color/md_theme_error</color>
+    <color name="md_on_error">@color/md_theme_onError</color>
+    <color name="md_error_container">@color/md_theme_errorContainer</color>
+    <color name="md_on_error_container">@color/md_theme_onErrorContainer</color>
+    <color name="md_background">@color/md_theme_background</color>
+    <color name="md_on_background">@color/md_theme_onBackground</color>
+    <color name="md_surface">@color/md_theme_surface</color>
+    <color name="md_on_surface">@color/md_theme_onSurface</color>
+    <color name="md_surface_variant">@color/md_theme_surfaceVariant</color>
+    <color name="md_on_surface_variant">@color/md_theme_onSurfaceVariant</color>
+    <color name="md_outline">@color/md_theme_outline</color>
+    <color name="md_outline_variant">@color/md_theme_outlineVariant</color>
+
+    <color name="warning">#FFD18A</color>
+    <color name="warning_container">#5C3D00</color>
+    <color name="on_warning_container">#FFEBC7</color>
+    <color name="weather_circle">@color/md_theme_primaryContainer</color>
+    <color name="weather_alert_background">@color/md_theme_secondaryContainer</color>
+    <color name="image_placeholder">@color/md_theme_surfaceVariant</color>
+    <!-- 深色模式选中态：低亮度柔和紫，避免与 #1E293B 卡片形成刺眼补丁。 -->
+    <color name="tab_checked_background">#4F378B</color>
+    <color name="tab_checked_text">#EADDFF</color>
+</resources>

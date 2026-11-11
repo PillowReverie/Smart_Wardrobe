@@ -1,0 +1,425 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".MainActivity">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@android:color/transparent"
+        app:menu="@menu/menu_main"
+        app:title="@string/app_name"
+        app:titleTextColor="@color/md_on_surface" />
+
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefresh"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/homeScroll"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingStart="@dimen/screen_padding"
+                android:paddingTop="@dimen/space_s"
+                android:paddingEnd="@dimen/screen_padding"
+                android:paddingBottom="32dp">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/weatherCard"
+                    style="@style/Widget.Wardrobe.Card"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:minHeight="96dp"
+                        android:orientation="horizontal"
+                        android:padding="@dimen/space_l">
+
+                        <FrameLayout
+                            android:layout_width="56dp"
+                            android:layout_height="56dp"
+                            android:background="@drawable/bg_weather_circle">
+
+                            <ImageView
+                                android:layout_width="28dp"
+                                android:layout_height="28dp"
+                                android:layout_gravity="center"
+                                android:contentDescription="@string/cd_weather_icon"
+                                android:src="@drawable/ic_cloud"
+                                app:tint="@color/md_primary" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="@dimen/space_l"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/weatherLocation"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/home_weather_location"
+                                android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                                android:textColor="@color/md_on_surface_variant" />
+
+                            <TextView
+                                android:id="@+id/weatherCondition"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:maxLines="1"
+                                android:text="@string/home_weather_loading"
+                                android:textAppearance="@style/TextAppearance.Material3.HeadlineMedium"
+                                android:textColor="@color/md_on_surface"
+                                app:autoSizeMaxTextSize="28sp"
+                                app:autoSizeMinTextSize="18sp"
+                                app:autoSizeStepGranularity="1sp"
+                                app:autoSizeTextType="uniform"
+                                tools:text="15℃ 晴" />
+
+                            <com.google.android.material.progressindicator.CircularProgressIndicator
+                                android:id="@+id/weatherProgress"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="@dimen/space_xs"
+                                android:indeterminate="true"
+                                android:visibility="gone"
+                                app:indicatorColor="@color/md_primary"
+                                app:indicatorSize="20dp"
+                                tools:visibility="visible" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <TextView
+                    android:id="@+id/weatherAlertText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_s"
+                    android:background="@drawable/bg_weather_alert"
+                    android:paddingStart="@dimen/space_m"
+                    android:paddingTop="@dimen/space_s"
+                    android:paddingEnd="@dimen/space_m"
+                    android:paddingBottom="@dimen/space_s"
+                    android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                    android:textColor="?attr/colorOnSurface"
+                    android:visibility="gone"
+                    tools:text="今日天气不错，适合出门！"
+                    tools:visibility="visible" />
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/aiCard"
+                    style="@style/Widget.Wardrobe.Card"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_l">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="@dimen/space_l">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <ImageView
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:contentDescription="@string/cd_ai_icon"
+                                android:src="@drawable/ic_auto_awesome"
+                                app:tint="@color/md_secondary" />
+
+                            <TextView
+                                android:id="@+id/aiTitle"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/space_s"
+                                android:layout_weight="1"
+                                android:text="@string/home_ai_title"
+                                android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                                android:textColor="@color/md_on_surface"
+                                android:textSize="18sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/aiModeGroup"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/space_s"
+                            android:baselineAligned="false"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/aiModeInspirationButton"
+                                style="@style/Widget.Wardrobe.TabButton"
+                                android:layout_width="0dp"
+                                android:layout_height="40dp"
+                                android:layout_marginEnd="4dp"
+                                android:layout_weight="1"
+                                android:contentDescription="@string/home_ai_mode_inspiration_cd"
+                                android:text="@string/home_ai_mode_inspiration" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/aiModeClassicButton"
+                                style="@style/Widget.Wardrobe.TabButton"
+                                android:layout_width="0dp"
+                                android:layout_height="40dp"
+                                android:layout_marginStart="4dp"
+                                android:layout_marginEnd="4dp"
+                                android:layout_weight="1"
+                                android:contentDescription="@string/home_ai_mode_classic_cd"
+                                android:text="@string/home_ai_mode_classic" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/aiModeTravelButton"
+                                style="@style/Widget.Wardrobe.TabButton"
+                                android:layout_width="0dp"
+                                android:layout_height="40dp"
+                                android:layout_marginStart="4dp"
+                                android:layout_weight="1"
+                                android:contentDescription="@string/home_ai_mode_travel_cd"
+                                android:text="@string/home_ai_mode_travel" />
+                        </LinearLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/sceneInputLayout"
+                            style="@style/Widget.Wardrobe.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/space_m"
+                            android:hint="@string/home_ai_scene_hint"
+                            app:counterEnabled="true"
+                            app:counterMaxLength="30"
+                            app:endIconMode="clear_text">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/sceneInput"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:imeOptions="actionDone"
+                                android:inputType="textCapSentences"
+                                android:maxLength="30"
+                                android:maxLines="1"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/aiGenerateButton"
+                            style="@style/Widget.Wardrobe.Button"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/space_s"
+                            android:text="@string/home_ai_generate"
+                            app:icon="@drawable/ic_auto_awesome"
+                            app:iconGravity="textStart" />
+
+                        <LinearLayout
+                            android:id="@+id/aiLoadingPanel"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/space_m"
+                            android:gravity="center"
+                            android:orientation="vertical"
+                            android:padding="@dimen/space_l"
+                            android:visibility="gone"
+                            tools:visibility="visible">
+
+                            <ProgressBar
+                                android:id="@+id/aiProgress"
+                                android:layout_width="36dp"
+                                android:layout_height="36dp"
+                                android:indeterminate="true"
+                                android:indeterminateTint="@color/md_theme_primary" />
+
+                            <TextView
+                                android:id="@+id/aiLoadingText"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="@dimen/space_s"
+                                android:gravity="center"
+                                android:text="@string/ai_loading_wardrobe"
+                                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                                android:textColor="@color/md_theme_onSurfaceVariant" />
+                        </LinearLayout>
+
+                        <com.example.wardrobe.widget.MaxHeightNestedScrollView
+                            android:id="@+id/aiContentScroll"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/space_m"
+                            android:clipToPadding="false"
+                            android:fillViewport="false"
+                            android:scrollbarStyle="insideInset"
+                            android:scrollbars="vertical"
+                            app:contentMaxHeight="520dp">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:id="@+id/aiContent"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:lineSpacingExtra="4dp"
+                                    android:text="@string/home_ai_desc"
+                                    android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                                    android:textColor="@color/md_on_surface_variant" />
+
+                                <TextView
+                                    android:id="@+id/travelPackingImagesTitle"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/home_travel_packing_images_title"
+                                    android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                                    android:textColor="?attr/colorOnSurface"
+                                    android:textStyle="bold"
+                                    android:visibility="gone"
+                                    tools:visibility="visible" />
+
+                                <androidx.recyclerview.widget.RecyclerView
+                                    android:id="@+id/travelPackingItemList"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="@dimen/space_s"
+                                    android:clipToPadding="false"
+                                    android:paddingStart="16dp"
+                                    android:paddingEnd="16dp"
+                                    android:nestedScrollingEnabled="false"
+                                    android:overScrollMode="never"
+                                    android:visibility="gone"
+                                    tools:listitem="@layout/item_travel_packing"
+                                    tools:visibility="visible" />
+
+                                <TextView
+                                    android:id="@+id/travelPackingTextTitle"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="@dimen/space_m"
+                                    android:text="@string/home_travel_packing_text_title"
+                                    android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                                    android:textColor="?attr/colorOnSurface"
+                                    android:textStyle="bold"
+                                    android:visibility="gone"
+                                    tools:visibility="visible" />
+
+                                <TextView
+                                    android:id="@+id/travelPackingText"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="@dimen/space_xs"
+                                    android:lineSpacingExtra="4dp"
+                                    android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                                    android:textColor="?attr/colorOnSurfaceVariant"
+                                    android:visibility="gone"
+                                    tools:text="洗护类：..."
+                                    tools:visibility="visible" />
+
+                                <androidx.recyclerview.widget.RecyclerView
+                                    android:id="@+id/aiPlanList"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:nestedScrollingEnabled="false"
+                                    android:overScrollMode="never"
+                                    android:visibility="gone"
+                                    tools:visibility="visible" />
+                            </LinearLayout>
+                        </com.example.wardrobe.widget.MaxHeightNestedScrollView>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    style="@style/Widget.Wardrobe.Card"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_l">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="@dimen/space_l">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/home_overview_title"
+                            android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                            android:textColor="@color/md_on_surface"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/wardrobeSummary"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/space_s"
+                            android:text="@string/home_summary_format"
+                            android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall"
+                            android:textColor="@color/md_primary"
+                            tools:text="衣橱 0 件 · 搭配 0 套" />
+
+                        <TextView
+                            android:id="@+id/overviewHint"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/space_s"
+                            android:text="@string/home_overview_empty"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                            android:textColor="@color/md_on_surface_variant" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/space_l"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/openWardrobeButton"
+                                style="@style/Widget.Wardrobe.Button"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/home_open_wardrobe"
+                                app:icon="@drawable/ic_checkroom" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/openOutfitsButton"
+                                style="@style/Widget.Wardrobe.Button.Outlined"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/space_s"
+                                android:text="@string/home_open_outfits"
+                                app:icon="@drawable/ic_outfit" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+</LinearLayout>

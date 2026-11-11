@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- 相机临时文件目录，拍照完成后由 ImageStore 复制到 files/images。 -->
+    <cache-path
+        name="camera_cache"
+        path="camera/" />
+    <!-- UCrop 输入/输出临时文件，裁剪完成后立即清理。 -->
+    <cache-path
+        name="crop_cache"
+        path="crop/" />
+    <!-- 衣物图片最终保存目录，只保存应用私有文件。 -->
+    <files-path
+        name="wardrobe_images"
+        path="images/" />
+</paths>

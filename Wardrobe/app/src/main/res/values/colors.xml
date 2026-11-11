@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- 从应用图标重新提取的浅色主题：蓝紫交织、低饱和冷灰背景。 -->
+    <color name="md_theme_primary">#8B5CF6</color>
+    <color name="md_theme_onPrimary">#FFFFFF</color>
+    <color name="md_theme_primaryContainer">#EDE9FE</color>
+    <color name="md_theme_onPrimaryContainer">#4C1D95</color>
+    <color name="md_theme_secondary">#3B82F6</color>
+    <color name="md_theme_onSecondary">#FFFFFF</color>
+    <color name="md_theme_secondaryContainer">#DBEAFE</color>
+    <color name="md_theme_onSecondaryContainer">#1E3A8A</color>
+    <color name="md_theme_tertiary">#6366F1</color>
+    <color name="md_theme_onTertiary">#FFFFFF</color>
+    <color name="md_theme_tertiaryContainer">#E0E7FF</color>
+    <color name="md_theme_onTertiaryContainer">#312E81</color>
+    <color name="md_theme_error">#EF4444</color>
+    <color name="md_theme_onError">#FFFFFF</color>
+    <color name="md_theme_errorContainer">#FEE2E2</color>
+    <color name="md_theme_onErrorContainer">#7F1D1D</color>
+    <color name="md_theme_background">#F8FAFC</color>
+    <color name="md_theme_onBackground">#0F172A</color>
+    <color name="md_theme_surface">#FFFFFF</color>
+    <color name="md_theme_onSurface">#0F172A</color>
+    <color name="md_theme_surfaceVariant">#F1F5F9</color>
+    <color name="md_theme_onSurfaceVariant">#64748B</color>
+    <color name="md_theme_outline">#CBD5E1</color>
+    <color name="md_theme_outlineVariant">#E2E8F0</color>
+
+    <!-- 旧资源名保留为语义别名，避免 Java/XML 中大量引用失效。 -->
+    <color name="app_background">@color/md_theme_background</color>
+    <color name="md_primary">@color/md_theme_primary</color>
+    <color name="md_on_primary">@color/md_theme_onPrimary</color>
+    <color name="md_primary_container">@color/md_theme_primaryContainer</color>
+    <color name="md_on_primary_container">@color/md_theme_onPrimaryContainer</color>
+    <color name="md_secondary">@color/md_theme_secondary</color>
+    <color name="md_on_secondary">@color/md_theme_onSecondary</color>
+    <color name="md_secondary_container">@color/md_theme_secondaryContainer</color>
+    <color name="md_on_secondary_container">@color/md_theme_onSecondaryContainer</color>
+    <color name="md_tertiary">@color/md_theme_tertiary</color>
+    <color name="md_on_tertiary">@color/md_theme_onTertiary</color>
+    <color name="md_tertiary_container">@color/md_theme_tertiaryContainer</color>
+    <color name="md_on_tertiary_container">@color/md_theme_onTertiaryContainer</color>
+    <color name="md_error">@color/md_theme_error</color>
+    <color name="md_on_error">@color/md_theme_onError</color>
+    <color name="md_error_container">@color/md_theme_errorContainer</color>
+    <color name="md_on_error_container">@color/md_theme_onErrorContainer</color>
+    <color name="md_background">@color/md_theme_background</color>
+    <color name="md_on_background">@color/md_theme_onBackground</color>
+    <color name="md_surface">@color/md_theme_surface</color>
+    <color name="md_on_surface">@color/md_theme_onSurface</color>
+    <color name="md_surface_variant">@color/md_theme_surfaceVariant</color>
+    <color name="md_on_surface_variant">@color/md_theme_onSurfaceVariant</color>
+    <color name="md_outline">@color/md_theme_outline</color>
+    <color name="md_outline_variant">@color/md_theme_outlineVariant</color>
+
+    <color name="warning">#8A5300</color>
+    <color name="warning_container">#FFEBC7</color>
+    <color name="on_warning_container">#2B1700</color>
+    <color name="weather_circle">@color/md_theme_primaryContainer</color>
+    <color name="weather_alert_background">@color/md_theme_secondaryContainer</color>
+    <color name="image_placeholder">@color/md_theme_surfaceVariant</color>
+    <color name="tab_checked_background">@color/md_theme_primaryContainer</color>
+    <color name="tab_checked_text">@color/md_theme_onPrimaryContainer</color>
+</resources>

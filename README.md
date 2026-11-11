@@ -36,6 +36,25 @@
 
 核心数据流：定位并获取天气 → 读取衣橱和搭配库 → `PromptBuilder` 拼接 Prompt → `LLMService` 异步请求 → `AiOutfitParser` 解析并匹配衣物图片 → 页面展示或写入搭配库。
 
+## 架构
+
+项目采用 Activity + ViewModel + Repository 的分层结构：
+
+```text
+Activity（只渲染 UiState）
+    ↓ 用户操作
+ViewModel（状态分发与页面编排）
+    ↓
+WardrobeRepository / WeatherRepository / OutfitRepository
+    ↓
+SQLite / LocationManager / 和风天气 / LLMService
+```
+
+- 首页通过唯一的 `MainUiState` 驱动天气、AI、旅行清单和统计信息渲染。
+- 单品详情页通过 `ItemDetailUiState` 与 `ItemDetailViewModel` 隔离网络和数据库逻辑。
+- Repository 负责数据读取、缓存、Prompt 拼接、网络请求与结果解析。
+- Activity 不直接调用 DAO、WeatherManager、PromptBuilder 或 LLMService。
+
 ## 项目结构
 
 ```text

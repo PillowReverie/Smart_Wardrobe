@@ -1,7 +1,9 @@
 package com.example.wardrobe.viewmodel;
 
 import android.app.Application;
-import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
@@ -9,431 +11,571 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
 import com.example.wardrobe.R;
+import com.example.wardrobe.data.OutfitRepository;
 import com.example.wardrobe.data.WardrobeRepository;
+import com.example.wardrobe.data.WeatherRepository;
 import com.example.wardrobe.model.AiOutfitPlan;
 import com.example.wardrobe.model.ClothingItem;
-import com.example.wardrobe.model.TravelPackingItem;
 import com.example.wardrobe.model.WeatherInfo;
-import com.example.wardrobe.network.LLMService;
-import com.example.wardrobe.network.dto.ChatResponse;
-import com.example.wardrobe.ui.state.TravelUiState;
+import com.example.wardrobe.ui.state.MainUiState;
 import com.example.wardrobe.util.AiOutfitCache;
 import com.example.wardrobe.util.ApiConfig;
+import com.example.wardrobe.util.ItemDescriptionGenerator;
 import com.example.wardrobe.util.NetworkUtils;
-import com.example.wardrobe.util.PromptBuilder;
-import com.example.wardrobe.util.TravelPlanner;
-import com.example.wardrobe.util.TravelResultCache;
+import com.example.wardrobe.util.RecommendationMode;
+import com.example.wardrobe.util.SceneInputStore;
+import com.example.wardrobe.util.StyleProfileManager;
 
+import java.util.Collections;
 import java.util.List;
-
-import retrofit2.Call;
 
 /**
  * 首页 ViewModel。
  *
- * <p>共享衣橱 LiveData，并把“异地游玩”的全部业务状态收敛为
- * TravelUiState：输入非空生成打包清单，输入为空使用旅行衣橱生成
- * 当天穿搭。网络 Call 在 ViewModel 清理时统一取消。</p>
+ * <p>只负责状态合并与业务分发。天气、位置、Prompt、LLM、SQLite 和缓存
+ * 分别由 WeatherRepository、OutfitRepository、WardrobeRepository 完成。</p>
  */
 public class MainViewModel extends AndroidViewModel {
 
-    /**
-     * 空输入场景用于旅行衣橱的“当天穿搭”缓存，不会回填到输入框。
-     */
-    public static final String TRAVEL_DAILY_SCENE = "旅行衣橱今日穿搭";
+    private static final long MIN_WEATHER_REFRESH_MS = 1500L;
+    private static final long AUTO_AI_DEBOUNCE_MS = 10_000L;
 
-    private final WardrobeRepository repository;
-    private final TravelPlanner travelPlanner = new TravelPlanner();
-    private final MutableLiveData<TravelUiState> travelUiState =
-            new MutableLiveData<>(TravelUiState.idle());
-    private final MutableLiveData<Boolean> travelRequestInFlight =
-            new MutableLiveData<>(false);
+    private final WardrobeRepository wardrobeRepository;
+    private final WeatherRepository weatherRepository =
+            new WeatherRepository();
+    private final OutfitRepository outfitRepository;
+    private final Handler mainHandler =
+            new Handler(Looper.getMainLooper());
+    private final MutableLiveData<MainUiState> uiState =
+            new MutableLiveData<>();
+    private final androidx.lifecycle.Observer<List<ClothingItem>>
+            wardrobeObserver = ignored -> onWardrobeChanged();
 
-    private Call<ChatResponse> travelCall;
-    private int requestToken;
-    private boolean requestInFlight;
-    private TravelUiState lastSuccessState = TravelUiState.idle();
+    private String currentMode;
+    private String currentGender;
+    private boolean weatherRequestInFlight;
+    private boolean aiRequestInFlight;
+    private long weatherRequestStartedAt;
+    private long lastAutoRequestTime;
+    private long messageSequence;
+    private int loadingStage;
+    private final Runnable loadingTicker = new Runnable() {
+        @Override
+        public void run() {
+            if (!getState().isAiLoading()) {
+                return;
+            }
+            loadingStage = (loadingStage + 1) % 3;
+            String text = getApplication().getString(
+                    loadingStage == 0
+                            ? R.string.ai_loading_weather
+                            : loadingStage == 1
+                            ? R.string.ai_loading_wardrobe
+                            : R.string.ai_loading_styling);
+            update(state -> state.buildUpon().loadingText(text));
+            mainHandler.postDelayed(this, 1400L);
+        }
+    };
 
     public MainViewModel(@NonNull Application application) {
         super(application);
-        repository = WardrobeRepository.getInstance(application);
+        wardrobeRepository = WardrobeRepository.getInstance(application);
+        outfitRepository = new OutfitRepository(application);
+        currentMode = RecommendationMode.get(application);
+        currentGender = StyleProfileManager.getGender(application);
+        uiState.setValue(new MainUiState.Builder()
+                .mode(currentMode)
+                .scene(SceneInputStore.get(application, currentMode))
+                .genderSelected(StyleProfileManager.hasGender(application))
+                .build());
+        wardrobeRepository.getAllItems()
+                .observeForever(wardrobeObserver);
+        refreshOutfitCount();
+        restoreCurrentCache();
     }
 
-    public LiveData<List<ClothingItem>> getAllItems() {
-        return repository.getAllItems();
+    public LiveData<MainUiState> getUiState() {
+        return uiState;
     }
 
-    public LiveData<List<ClothingItem>> getTravelItems() {
-        return repository.getTravelItems();
+    public void setScene(String scene) {
+        update(state -> state.buildUpon()
+                .scene(scene == null ? "" : scene.trim()));
     }
 
-    public LiveData<Boolean> getTravelMutationInFlight() {
-        return repository.getTravelMutationInFlight();
+    public void onSceneInputSaved() {
+        SceneInputStore.save(getApplication(), currentMode,
+                getState().getScene());
     }
 
-    public LiveData<TravelUiState> getTravelUiState() {
-        return travelUiState;
-    }
-
-    public LiveData<Boolean> getTravelRequestInFlight() {
-        return travelRequestInFlight;
-    }
-
-    /**
-     * 输入框非空：解析城市/日期/天数，查询目的地七天天气并生成打包清单。
-     */
-    public void generateTravelPacking(String rawInput, String gender) {
-        if (requestInFlight) {
+    public void selectMode(String selectedMode) {
+        String normalized = RecommendationMode.normalize(selectedMode);
+        if (normalized.equals(currentMode)) {
             return;
         }
-        if (!NetworkUtils.isNetworkAvailable(getApplication())) {
-            publishError(getApplication().getString(
-                    R.string.network_unavailable));
-            return;
-        }
-        if (!ApiConfig.isLlmConfigured(getApplication())) {
-            publishError(getApplication().getString(
-                    R.string.ai_need_llm_key));
-            return;
-        }
-        if (!ApiConfig.isWeatherConfigured(getApplication())) {
-            publishError(getApplication().getString(
-                    R.string.weather_not_configured));
-            return;
-        }
-        List<ClothingItem> allItems = repository.getAllItemsSnapshot();
-        if (allItems.isEmpty()) {
-            publishError(getApplication().getString(
-                    R.string.ai_need_clothes));
-            return;
-        }
+        SceneInputStore.save(getApplication(), currentMode,
+                getState().getScene());
+        currentMode = normalized;
+        RecommendationMode.save(getApplication(), currentMode);
+        String restored = SceneInputStore.get(
+                getApplication(), currentMode);
+        update(state -> state.buildUpon()
+                .mode(currentMode)
+                .scene(restored)
+                .aiLoading(false)
+                .aiContent("")
+                .aiDate("")
+                .aiPlans(Collections.emptyList())
+                .packingItems(Collections.emptyList())
+                .packingListText("")
+                .contentType(MainUiState.ContentType.IDLE));
+        cancelAi();
+        restoreCurrentCache();
+    }
 
-        int token = beginRequest(rawInput);
-        travelPlanner.plan(
-                getApplication(),
-                rawInput,
-                gender,
-                allItems,
-                new TravelPlanner.Callback() {
+    public void saveGender(String gender) {
+        StyleProfileManager.saveGender(getApplication(), gender);
+        currentGender = StyleProfileManager.normalizeGender(gender);
+        update(state -> state.buildUpon().genderSelected(true));
+        updateStateWithMessage(getApplication().getString(
+                R.string.gender_saved,
+                getApplication().getString(
+                        StyleProfileManager.getLabelResId(currentGender))));
+        refreshWeather(false);
+        restoreCurrentCache();
+    }
+
+    public void refreshWeather(boolean forceRefresh) {
+        if (weatherRequestInFlight) {
+            return;
+        }
+        weatherRequestStartedAt = SystemClock.elapsedRealtime();
+        weatherRequestInFlight = true;
+        update(state -> state.buildUpon().weatherLoading(true));
+        weatherRepository.refresh(getApplication(), forceRefresh,
+                new WeatherRepository.Callback() {
                     @Override
-                    public void onInvalidInput(String message) {
-                        finishRequestWithError(token, message);
+                    public void onLocationName(String locationName) {
+                        update(state -> state.buildUpon()
+                                .locationName(locationName));
                     }
 
                     @Override
-                    public void onSuccess(String content, String scene) {
-                        if (!isCurrent(token)) {
-                            return;
-                        }
-                        AiOutfitCache.save(
-                                getApplication(),
-                                com.example.wardrobe.util.RecommendationMode.TRAVEL,
-                                scene,
-                                gender,
-                                content);
-                        TravelResultCache.save(
-                                getApplication(), scene, gender, content);
-                        publishPacking(token, content, scene);
+                    public void onWeather(WeatherInfo weather,
+                                          String alert) {
+                        update(state -> state.buildUpon()
+                                .weatherInfo(weather)
+                                .weatherAlert(alert));
                     }
 
                     @Override
                     public void onError(String message) {
-                        finishRequestWithError(token, message);
+                        updateStateWithMessage(message);
+                    }
+
+                    @Override
+                    public void onFinished() {
+                        weatherRequestInFlight = false;
+                        long elapsed = SystemClock.elapsedRealtime()
+                                - weatherRequestStartedAt;
+                        long delay = Math.max(0L,
+                                MIN_WEATHER_REFRESH_MS - elapsed);
+                        mainHandler.postDelayed(() -> {
+                            update(state -> state.buildUpon()
+                                    .weatherLoading(false));
+                            maybeAutoGenerate();
+                        }, delay);
                     }
                 });
     }
 
-    /**
-     * 输入框为空：只使用 is_travel = 1 的衣物生成当天穿搭。
-     */
-    public void generateTravelDailyOutfit(WeatherInfo weather,
-                                          String gender) {
-        if (requestInFlight) {
+    public void generateCurrent(boolean manual) {
+        if (aiRequestInFlight || !getState().hasGender()) {
+            if (!getState().hasGender()) {
+                updateStateWithMessage(getApplication().getString(
+                        R.string.gender_required));
+            }
             return;
         }
-        List<ClothingItem> travelItems =
-                repository.getTravelItemsSnapshot();
-        if (travelItems.isEmpty()) {
-            publishError(getApplication().getString(
-                    R.string.travel_wardrobe_need_items));
+        MainUiState state = getState();
+        if (!NetworkUtils.isNetworkAvailable(getApplication())) {
+            publishAiFailure(getApplication().getString(
+                    R.string.network_unavailable));
             return;
         }
-        if (weather == null) {
-            publishError(getApplication().getString(
+        if (!ApiConfig.isLlmConfigured(getApplication())) {
+            publishAiFailure(getApplication().getString(
+                    R.string.ai_need_llm_key));
+            return;
+        }
+        if (RecommendationMode.isTravel(currentMode)) {
+            generateTravel(manual);
+            return;
+        }
+        if (state.getWeatherInfo() == null) {
+            publishAiFailure(getApplication().getString(
                     R.string.ai_need_weather));
             return;
         }
-        if (!ApiConfig.isLlmConfigured(getApplication())) {
-            publishError(getApplication().getString(
-                    R.string.ai_need_llm_key));
+        if (state.getWardrobeCount() == 0) {
+            publishAiFailure(getApplication().getString(
+                    R.string.ai_need_clothes));
             return;
         }
-        if (!NetworkUtils.isNetworkAvailable(getApplication())) {
-            publishError(getApplication().getString(
-                    R.string.network_unavailable));
-            return;
-        }
-
-        int token = beginRequest(TRAVEL_DAILY_SCENE);
-        String userPrompt = PromptBuilder.buildTravelWardrobeOutfitPrompt(
-                weather, travelItems, gender);
-        String systemPrompt =
-                PromptBuilder.buildTravelOutfitSystemPrompt(gender);
-        travelCall = LLMService.getInstance().generate(
+        beginAiRequest(manual);
+        outfitRepository.generateDaily(
                 getApplication(),
-                systemPrompt,
-                userPrompt,
-                new LLMService.Callback() {
+                state.getWeatherInfo(),
+                currentMode,
+                state.getScene(),
+                currentGender,
+                manual,
+                state.getAiContent(),
+                currentSceneOrDefault(state),
+                outfitCallback());
+    }
+
+    public void setTravelState(ClothingItem item,
+                               boolean travel,
+                               WardrobeRepository.ResultCallback<Integer> callback) {
+        wardrobeRepository.setItemTravel(item.getId(), travel,
+                new WardrobeRepository.ResultCallback<Integer>() {
                     @Override
-                    public void onSuccess(String content) {
-                        if (!isCurrent(token)) {
-                            return;
+                    public void onSuccess(Integer rows) {
+                        if (rows != null && rows > 0) {
+                            updateStateWithMessage(getApplication().getString(
+                                    travel
+                                            ? R.string.travel_item_added
+                                            : R.string.travel_item_removed));
                         }
-                        travelCall = null;
-                        AiOutfitCache.save(
-                                getApplication(),
-                                com.example.wardrobe.util.RecommendationMode.TRAVEL,
-                                TRAVEL_DAILY_SCENE,
-                                gender,
-                                content);
-                        publishOutfit(token, content, TRAVEL_DAILY_SCENE);
+                        callback.onSuccess(rows);
                     }
 
                     @Override
                     public void onError(String message) {
-                        finishRequestWithError(token, message);
+                        updateStateWithMessage(message);
+                        callback.onError(message);
                     }
                 });
-    }
-
-    /**
-     * 恢复当天缓存。输入非空恢复打包清单；输入为空恢复旅行中穿搭。
-     * 输入框内容本身由 Activity/SceneInputStore 管理，这里不回写。
-     */
-    public void restoreTravelCache(String rawInput, String gender) {
-        String normalizedInput = rawInput == null ? "" : rawInput.trim();
-        if (normalizedInput.isEmpty()) {
-            String cached = AiOutfitCache.loadTodayContent(
-                    getApplication(),
-                    com.example.wardrobe.util.RecommendationMode.TRAVEL,
-                    TRAVEL_DAILY_SCENE,
-                    gender);
-            if (cached != null) {
-                publishOutfitWithoutRequest(
-                        cached, TRAVEL_DAILY_SCENE, gender);
-            } else {
-                travelUiState.setValue(TravelUiState.idle());
-            }
-            return;
-        }
-
-        String cached = AiOutfitCache.loadTodayContent(
-                getApplication(),
-                com.example.wardrobe.util.RecommendationMode.TRAVEL,
-                normalizedInput,
-                gender);
-        if (cached == null) {
-            TravelResultCache.Result last =
-                    TravelResultCache.loadToday(getApplication(), gender);
-            if (last != null && normalizedInput.equals(last.getScene())) {
-                cached = last.getContent();
-            }
-        }
-        if (cached != null) {
-            publishPackingWithoutRequest(cached, normalizedInput);
-        } else {
-            travelUiState.setValue(TravelUiState.idle());
-        }
-    }
-
-    /**
-     * 全局衣物快照变化后重新绑定打包清单图片和按钮状态。
-     * 例如用户在衣橱页清空旅行箱，返回首页时“已加入”会立即恢复为可添加。
-     */
-    public void refreshTravelPackingBindings() {
-        TravelUiState current = travelUiState.getValue();
-        if (current == null
-                || current.getKind() != TravelUiState.Kind.PACKING
-                || current.getContent().trim().isEmpty()) {
-            return;
-        }
-        int token = requestToken;
-        repository.parseTravelPacking(current.getContent(),
-                new WardrobeRepository.ResultCallback<List<TravelPackingItem>>() {
-                    @Override
-                    public void onSuccess(List<TravelPackingItem> items) {
-                        if (!isCurrent(token)) {
-                            return;
-                        }
-                        travelUiState.setValue(TravelUiState.packing(
-                                current.getContent(),
-                                current.getScene(),
-                                items));
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        // 原图文继续展示，图片绑定刷新失败不打断主流程。
-                    }
-                });
-    }
-
-    /**
-     * 打包卡片的双向旅行状态更新。
-     */
-    public void setTravelState(
-            ClothingItem item,
-            boolean travel,
-            WardrobeRepository.ResultCallback<Integer> callback) {
-        if (item == null || item.getId() <= 0) {
-            return;
-        }
-        repository.setItemTravel(item.getId(), travel, callback);
     }
 
     public void clearTravel(
             WardrobeRepository.ResultCallback<Integer> callback) {
-        repository.clearTravelItems(callback);
+        wardrobeRepository.clearTravelItems(callback);
     }
 
-    public TravelUiState getLastSuccessState() {
-        return lastSuccessState;
-    }
-
-    private int beginRequest(String scene) {
-        requestInFlight = true;
-        travelRequestInFlight.setValue(true);
-        travelUiState.setValue(TravelUiState.loading(scene));
-        return ++requestToken;
-    }
-
-    private boolean isCurrent(int token) {
-        return token == requestToken;
-    }
-
-    private void publishPacking(int token,
-                                String content,
-                                String scene) {
-        repository.parseTravelPacking(content,
-                new WardrobeRepository.ResultCallback<List<TravelPackingItem>>() {
-                    @Override
-                    public void onSuccess(List<TravelPackingItem> items) {
-                        if (!isCurrent(token)) {
-                            return;
-                        }
-                        finishLoading();
-                        TravelUiState state = TravelUiState.packing(
-                                content, scene, items);
-                        lastSuccessState = state;
-                        travelUiState.setValue(state);
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        finishRequestWithError(token, message);
-                    }
-                });
-    }
-
-    private void publishOutfit(int token,
-                               String content,
-                               String scene) {
-        repository.parseOutfitPlans(content,
-                new WardrobeRepository.ResultCallback<List<AiOutfitPlan>>() {
-                    @Override
-                    public void onSuccess(List<AiOutfitPlan> plans) {
-                        if (!isCurrent(token)) {
-                            return;
-                        }
-                        finishLoading();
-                        TravelUiState state = TravelUiState.outfit(
-                                content, scene, plans);
-                        lastSuccessState = state;
-                        travelUiState.setValue(state);
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        finishRequestWithError(token, message);
-                    }
-                });
-    }
-
-    private void publishPackingWithoutRequest(String content, String scene) {
-        repository.parseTravelPacking(content,
-                new WardrobeRepository.ResultCallback<List<TravelPackingItem>>() {
-                    @Override
-                    public void onSuccess(List<TravelPackingItem> items) {
-                        TravelUiState state = TravelUiState.packing(
-                                content, scene, items);
-                        lastSuccessState = state;
-                        travelUiState.setValue(state);
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        travelUiState.setValue(
-                                TravelUiState.error(message, scene));
-                    }
-                });
-    }
-
-    private void publishOutfitWithoutRequest(String content,
-                                             String scene,
-                                             String gender) {
-        repository.parseOutfitPlans(content,
-                new WardrobeRepository.ResultCallback<List<AiOutfitPlan>>() {
-                    @Override
-                    public void onSuccess(List<AiOutfitPlan> plans) {
-                        TravelUiState state = TravelUiState.outfit(
-                                content, scene, plans);
-                        lastSuccessState = state;
-                        travelUiState.setValue(state);
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        travelUiState.setValue(
-                                TravelUiState.error(message, scene));
-                    }
-                });
-    }
-
-    private void finishRequestWithError(int token, String message) {
-        if (!isCurrent(token)) {
-            return;
+    public void onScreenResume() {
+        String savedGender = StyleProfileManager.getGender(getApplication());
+        if (!savedGender.equals(currentGender)) {
+            currentGender = savedGender;
+            cancelAi();
+            update(state -> state.buildUpon()
+                    .genderSelected(StyleProfileManager.hasGender(getApplication()))
+                    .aiContent("")
+                    .aiDate("")
+                    .aiPlans(Collections.emptyList())
+                    .packingItems(Collections.emptyList())
+                    .packingListText("")
+                    .contentType(MainUiState.ContentType.IDLE));
+            restoreCurrentCache();
         }
-        finishLoading();
-        travelUiState.setValue(TravelUiState.error(
-                message == null ? "" : message,
-                travelUiState.getValue() == null
-                        ? "" : travelUiState.getValue().getScene()));
-    }
-
-    private void publishError(String message) {
-        travelUiState.setValue(TravelUiState.error(message, ""));
-    }
-
-    private void finishLoading() {
-        requestInFlight = false;
-        travelCall = null;
-        travelRequestInFlight.setValue(false);
+        if (!AiOutfitCache.today().equals(cacheDate(getState()))) {
+            clearInvalidCacheForToday();
+        }
+        refreshOutfitCount();
+        wardrobeRepository.refreshAll();
+        if (getState().getWeatherInfo() == null
+                && ApiConfig.isWeatherConfigured(getApplication())
+                && NetworkUtils.isNetworkAvailable(getApplication())) {
+            refreshWeather(false);
+        } else {
+            maybeAutoGenerate();
+        }
+        maybeBackfillDescriptions();
     }
 
     public void cancelActiveRequests() {
-        requestToken++;
-        requestInFlight = false;
-        travelRequestInFlight.setValue(false);
-        if (travelCall != null) {
-            travelCall.cancel();
-            travelCall = null;
+        cancelAll();
+    }
+
+    private void generateTravel(boolean manual) {
+        MainUiState state = getState();
+        beginAiRequest(manual);
+        if (state.getScene().trim().isEmpty()) {
+            if (state.getWeatherInfo() == null) {
+                finishAiWithError(getApplication().getString(
+                        R.string.ai_need_weather));
+                return;
+            }
+            outfitRepository.generateTravelDaily(
+                    getApplication(),
+                    state.getWeatherInfo(),
+                    currentGender,
+                    outfitCallback());
+        } else {
+            if (!ApiConfig.isWeatherConfigured(getApplication())) {
+                finishAiWithError(getApplication().getString(
+                        R.string.weather_not_configured));
+                return;
+            }
+            outfitRepository.generateTravelPacking(
+                    getApplication(),
+                    state.getScene(),
+                    currentGender,
+                    outfitCallback());
         }
-        travelPlanner.cancel();
+    }
+
+    private OutfitRepository.Callback outfitCallback() {
+        return new OutfitRepository.Callback() {
+            @Override
+            public void onSuccess(OutfitRepository.OutfitResult result) {
+                aiRequestInFlight = false;
+                stopLoadingTicker();
+                MainUiState.Builder builder = getState().buildUpon()
+                        .aiLoading(false)
+                        .loadingText("")
+                        .aiContent(result.getContent())
+                        .aiDate(AiOutfitCache.today())
+                        .packingListText(result.getPackingListText())
+                        .aiPlans(result.getPlans())
+                        .packingItems(result.getPackingItems())
+                        .scene(result.getScene());
+                if (result.isPacking()) {
+                    builder.contentType(MainUiState.ContentType.PACKING);
+                } else if (!result.getPlans().isEmpty()) {
+                    builder.contentType(MainUiState.ContentType.PLANS);
+                } else {
+                    builder.contentType(MainUiState.ContentType.TEXT);
+                }
+                publish(builder);
+                if (!result.getNotice().isEmpty()) {
+                    updateStateWithMessage(result.getNotice());
+                }
+                maybeBackfillDescriptions();
+            }
+
+            @Override
+            public void onNoCache() {
+                aiRequestInFlight = false;
+                stopLoadingTicker();
+                publish(getState().buildUpon()
+                        .aiLoading(false)
+                        .loadingText("")
+                        .contentType(MainUiState.ContentType.IDLE)
+                        .aiContent("")
+                        .aiDate("")
+                        .aiPlans(Collections.emptyList())
+                        .packingItems(Collections.emptyList())
+                        .packingListText(""));
+                maybeAutoGenerate();
+            }
+
+            @Override
+            public void onError(String message) {
+                finishAiWithError(message);
+            }
+        };
+    }
+
+    private void restoreCurrentCache() {
+        if (RecommendationMode.isTravel(currentMode)) {
+            outfitRepository.restoreTravel(
+                    getApplication(),
+                    getState().getScene(),
+                    currentGender,
+                    outfitCallback());
+        } else {
+            outfitRepository.restoreDaily(
+                    getApplication(),
+                    currentMode,
+                    getState().getScene(),
+                    currentGender,
+                    outfitCallback());
+        }
+    }
+
+    private void maybeAutoGenerate() {
+        MainUiState state = getState();
+        if (state.isAiLoading() || state.getWeatherInfo() == null
+                || state.isTravelMode()
+                || !state.hasGender()
+                || state.getWardrobeCount() == 0
+                || !ApiConfig.isLlmConfigured(getApplication())
+                || !NetworkUtils.isNetworkAvailable(getApplication())) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastAutoRequestTime < AUTO_AI_DEBOUNCE_MS) {
+            return;
+        }
+        lastAutoRequestTime = now;
+        generateCurrent(false);
+    }
+
+    private void beginAiRequest(boolean manual) {
+        aiRequestInFlight = true;
+        startLoadingTicker();
+        MainUiState.Builder builder = getState().buildUpon()
+                .aiLoading(true)
+                .loadingText(getApplication().getString(
+                        R.string.ai_loading_weather));
+        if (manual) {
+            builder.aiContent("")
+                    .aiDate("")
+                    .aiPlans(Collections.emptyList())
+                    .packingItems(Collections.emptyList())
+                    .packingListText("")
+                    .contentType(MainUiState.ContentType.IDLE);
+        }
+        publish(builder);
+    }
+
+    private void finishAiWithError(String message) {
+        aiRequestInFlight = false;
+        stopLoadingTicker();
+        publishErrorState(message);
+        updateStateWithMessage(message);
+    }
+
+    private void publishAiFailure(String message) {
+        publishErrorState(message);
+        updateStateWithMessage(message);
+    }
+
+    private void publishErrorState(String message) {
+        MainUiState state = getState();
+        MainUiState.Builder builder = state.buildUpon()
+                .aiLoading(false)
+                .loadingText("");
+        if (state.getAiPlans().isEmpty()
+                && state.getPackingItems().isEmpty()
+                && state.getAiContent().trim().isEmpty()) {
+            builder.aiContent(message)
+                    .contentType(MainUiState.ContentType.TEXT);
+        }
+        publish(builder);
+    }
+
+    private void onWardrobeChanged() {
+        List<ClothingItem> items =
+                wardrobeRepository.getAllItemsSnapshot();
+        update(state -> state.buildUpon().wardrobeCount(items.size()));
+        maybeAutoGenerate();
+        MainUiState state = getState();
+        if (state.getContentType() == MainUiState.ContentType.PACKING
+                && !state.getAiContent().isEmpty()) {
+            outfitRepository.rebuildPacking(
+                    state.getAiContent(),
+                    currentSceneOrDefault(state),
+                    outfitCallback());
+        }
+    }
+
+    private void refreshOutfitCount() {
+        outfitRepository.loadOutfitCount(count ->
+                update(state -> state.buildUpon().outfitCount(count)));
+    }
+
+    private void clearInvalidCacheForToday() {
+        AiOutfitCache.clear(
+                getApplication(), currentMode,
+                currentSceneOrDefault(getState()), currentGender);
+        if (RecommendationMode.isTravel(currentMode)
+                && getState().getScene().trim().isEmpty()) {
+            AiOutfitCache.clear(
+                    getApplication(), RecommendationMode.TRAVEL,
+                    OutfitRepository.TRAVEL_DAILY_SCENE, currentGender);
+        }
+        update(state -> state.buildUpon()
+                .aiContent("")
+                .aiDate("")
+                .aiPlans(Collections.emptyList())
+                .packingItems(Collections.emptyList())
+                .packingListText("")
+                .contentType(MainUiState.ContentType.IDLE));
+    }
+
+    private String cacheDate(MainUiState state) {
+        return state.getAiDate();
+    }
+
+    private String currentSceneOrDefault(MainUiState state) {
+        return getRequestedScene(currentMode, state.getScene());
+    }
+
+    private String getRequestedScene(String mode, String scene) {
+        return RecommendationMode.isTravel(mode)
+                ? (scene == null ? "" : scene.trim())
+                : AiOutfitCache.normalizeScene(scene);
+    }
+
+    private void maybeBackfillDescriptions() {
+        if (!ApiConfig.isLlmConfigured(getApplication())
+                || !NetworkUtils.isNetworkAvailable(getApplication())
+                || ItemDescriptionGenerator.isBackfillRunning()
+                || getState().getWardrobeCount() == 0) {
+            return;
+        }
+        if (ItemDescriptionGenerator.countMissingDescriptions(
+                getApplication()) > 0) {
+            ItemDescriptionGenerator.backfillMissing(
+                    getApplication(), null);
+        }
+    }
+
+    private void updateStateWithMessage(String message) {
+        long id = ++messageSequence;
+        update(state -> state.buildUpon().message(message, id));
+    }
+
+    private MainUiState getState() {
+        MainUiState state = uiState.getValue();
+        return state == null ? new MainUiState.Builder().build() : state;
+    }
+
+    private void publish(MainUiState.Builder builder) {
+        uiState.setValue(builder.build());
+    }
+
+    private void update(StateUpdater updater) {
+        publish(updater.update(getState()));
+    }
+
+    private interface StateUpdater {
+        MainUiState.Builder update(MainUiState state);
+    }
+
+    private void cancelAi() {
+        outfitRepository.cancel();
+        aiRequestInFlight = false;
+        stopLoadingTicker();
+    }
+
+    private void cancelAll() {
+        outfitRepository.cancel();
+        weatherRepository.cancel();
+        aiRequestInFlight = false;
+        weatherRequestInFlight = false;
+        stopLoadingTicker();
+    }
+
+    private void startLoadingTicker() {
+        mainHandler.removeCallbacks(loadingTicker);
+        loadingStage = 0;
+        mainHandler.postDelayed(loadingTicker, 1400L);
+    }
+
+    private void stopLoadingTicker() {
+        mainHandler.removeCallbacks(loadingTicker);
     }
 
     @Override
     protected void onCleared() {
-        cancelActiveRequests();
+        wardrobeRepository.getAllItems()
+                .removeObserver(wardrobeObserver);
+        mainHandler.removeCallbacksAndMessages(null);
+        cancelAll();
         super.onCleared();
     }
 }

@@ -136,9 +136,17 @@ public class MainViewModel extends AndroidViewModel {
         RecommendationMode.save(getApplication(), currentMode);
         String restored = SceneInputStore.get(
                 getApplication(), currentMode);
+        MainUiState beforeSwitch = getState();
+        boolean hasVisibleContent =
+                !beforeSwitch.getAiContent().isEmpty()
+                        || !beforeSwitch.getAiPlans().isEmpty()
+                        || !beforeSwitch.getPackingItems().isEmpty();
+        // 目标旅行模式只有已有输入时才可能有打包缓存，空输入仍按原逻辑处理。
+        boolean targetCanShowContent =
+                !RecommendationMode.isTravel(currentMode)
+                        || !restored.trim().isEmpty();
         boolean preserveContent =
-                !RecommendationMode.isTravel(previousMode)
-                        && !RecommendationMode.isTravel(currentMode);
+                hasVisibleContent && targetCanShowContent;
         preserveContentAcrossCacheCheck = preserveContent;
         update(state -> {
             MainUiState.Builder builder = state.buildUpon()
@@ -455,10 +463,32 @@ public class MainViewModel extends AndroidViewModel {
      */
     private boolean startGenerationAfterModeSwitch() {
         MainUiState state = getState();
+        if (!state.isTravelMode()) {
+            return startDailyGenerationAfterModeSwitch(state);
+        }
+        if (state.getScene().trim().isEmpty()) {
+            return false;
+        }
+        if (!state.hasGender()
+                || !ApiConfig.isLlmConfigured(getApplication())
+                || !ApiConfig.isWeatherConfigured(getApplication())
+                || !NetworkUtils.isNetworkAvailable(getApplication())) {
+            return false;
+        }
+        autoGenerationAttempted = true;
+        beginAiRequest(false);
+        outfitRepository.generateTravelPacking(
+                getApplication(),
+                state.getScene(),
+                currentGender,
+                outfitCallback());
+        return true;
+    }
+
+    private boolean startDailyGenerationAfterModeSwitch(MainUiState state) {
         if (!state.hasGender()
                 || state.getWeatherInfo() == null
                 || state.getWardrobeCount() == 0
-                || state.isTravelMode()
                 || !ApiConfig.isLlmConfigured(getApplication())
                 || !NetworkUtils.isNetworkAvailable(getApplication())) {
             return false;

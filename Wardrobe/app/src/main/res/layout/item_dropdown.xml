@@ -8,4 +8,4 @@
     android:paddingStart="@dimen/space_l"
     android:paddingEnd="@dimen/space_l"
     android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
-    android:textColor="@color/md_on_surface" />
+    android:textColor="?attr/colorOnSurface" />

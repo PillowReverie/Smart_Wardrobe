@@ -19,12 +19,22 @@ public final class SceneInputStore {
     }
 
     public static String get(Context context, String mode) {
-        return preferences(context).getString(
+        String value = preferences(context).getString(
                 key(mode), "");
+        if (!RecommendationMode.isTravel(mode)
+                && AiOutfitCache.DEFAULT_SCENE.equals(
+                value == null ? "" : value.trim())) {
+            return "";
+        }
+        return value == null ? "" : value;
     }
 
     public static void save(Context context, String mode, String input) {
         String value = input == null ? "" : input.trim();
+        if (!RecommendationMode.isTravel(mode)
+                && AiOutfitCache.DEFAULT_SCENE.equals(value)) {
+            value = "";
+        }
         preferences(context).edit()
                 .putString(key(mode), value)
                 .apply();

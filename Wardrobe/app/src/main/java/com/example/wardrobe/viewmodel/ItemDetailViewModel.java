@@ -32,8 +32,7 @@ public class ItemDetailViewModel extends AndroidViewModel {
     }
 
     private final WardrobeRepository wardrobeRepository;
-    private final WeatherRepository weatherRepository =
-            new WeatherRepository();
+    private final WeatherRepository weatherRepository;
     private final OutfitRepository outfitRepository;
     private final MutableLiveData<ItemDetailUiState> uiState =
             new MutableLiveData<>(new ItemDetailUiState.Builder().build());
@@ -44,6 +43,7 @@ public class ItemDetailViewModel extends AndroidViewModel {
 
     public ItemDetailViewModel(@NonNull Application application) {
         super(application);
+        weatherRepository = new WeatherRepository(application);
         wardrobeRepository = WardrobeRepository.getInstance(application);
         outfitRepository = new OutfitRepository(application);
     }

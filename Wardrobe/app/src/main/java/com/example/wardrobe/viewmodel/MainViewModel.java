@@ -28,6 +28,10 @@ import com.example.wardrobe.util.StyleProfileManager;
 
 import java.util.Collections;
 import java.util.List;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 
 /**
  * 首页 ViewModel。
@@ -41,8 +45,7 @@ public class MainViewModel extends AndroidViewModel {
     private static final long AUTO_AI_DEBOUNCE_MS = 10_000L;
 
     private final WardrobeRepository wardrobeRepository;
-    private final WeatherRepository weatherRepository =
-            new WeatherRepository();
+    private final WeatherRepository weatherRepository;
     private final OutfitRepository outfitRepository;
     private final Handler mainHandler =
             new Handler(Looper.getMainLooper());
@@ -58,6 +61,8 @@ public class MainViewModel extends AndroidViewModel {
     private long weatherRequestStartedAt;
     private long lastAutoRequestTime;
     private long messageSequence;
+    private boolean cacheDecisionPending = true;
+    private boolean autoGenerationAttempted;
     private int loadingStage;
     private final Runnable loadingTicker = new Runnable() {
         @Override
@@ -76,9 +81,18 @@ public class MainViewModel extends AndroidViewModel {
             mainHandler.postDelayed(this, 1400L);
         }
     };
+    private final Runnable midnightResetRunnable = () -> {
+        cancelAi();
+        cacheDecisionPending = false;
+        autoGenerationAttempted = false;
+        clearInvalidCacheForToday();
+        maybeAutoGenerate();
+        scheduleMidnightReset();
+    };
 
     public MainViewModel(@NonNull Application application) {
         super(application);
+        weatherRepository = new WeatherRepository(application);
         wardrobeRepository = WardrobeRepository.getInstance(application);
         outfitRepository = new OutfitRepository(application);
         currentMode = RecommendationMode.get(application);
@@ -92,6 +106,7 @@ public class MainViewModel extends AndroidViewModel {
                 .observeForever(wardrobeObserver);
         refreshOutfitCount();
         restoreCurrentCache();
+        scheduleMidnightReset();
     }
 
     public LiveData<MainUiState> getUiState() {
@@ -100,7 +115,7 @@ public class MainViewModel extends AndroidViewModel {
 
     public void setScene(String scene) {
         update(state -> state.buildUpon()
-                .scene(scene == null ? "" : scene.trim()));
+                .scene(scene == null ? "" : scene));
     }
 
     public void onSceneInputSaved() {
@@ -130,6 +145,8 @@ public class MainViewModel extends AndroidViewModel {
                 .packingListText("")
                 .contentType(MainUiState.ContentType.IDLE));
         cancelAi();
+        cacheDecisionPending = true;
+        autoGenerationAttempted = false;
         restoreCurrentCache();
     }
 
@@ -142,6 +159,8 @@ public class MainViewModel extends AndroidViewModel {
                 getApplication().getString(
                         StyleProfileManager.getLabelResId(currentGender))));
         refreshWeather(false);
+        cacheDecisionPending = true;
+        autoGenerationAttempted = false;
         restoreCurrentCache();
     }
 
@@ -187,6 +206,25 @@ public class MainViewModel extends AndroidViewModel {
                         }, delay);
                     }
                 });
+    }
+
+    /**
+     * 进入页面时优先复用 30 分钟持久化缓存，只有缺失或过期才发起网络请求。
+     */
+    public void ensureWeather() {
+        WeatherInfo cached = weatherRepository.getCachedWeather();
+        if (cached != null) {
+            update(state -> state.buildUpon()
+                    .weatherLoading(false)
+                    .weatherInfo(cached)
+                    .weatherAlert(com.example.wardrobe.util.WeatherAdvisor
+                            .buildAlert(getApplication(), cached))
+                    .locationName(
+                            weatherRepository.getCachedLocationLabel()));
+            maybeAutoGenerate();
+            return;
+        }
+        refreshWeather(false);
     }
 
     public void generateCurrent(boolean manual) {
@@ -265,6 +303,7 @@ public class MainViewModel extends AndroidViewModel {
     }
 
     public void onScreenResume() {
+        scheduleMidnightReset();
         String savedGender = StyleProfileManager.getGender(getApplication());
         if (!savedGender.equals(currentGender)) {
             currentGender = savedGender;
@@ -277,17 +316,28 @@ public class MainViewModel extends AndroidViewModel {
                     .packingItems(Collections.emptyList())
                     .packingListText("")
                     .contentType(MainUiState.ContentType.IDLE));
+            cacheDecisionPending = true;
+            autoGenerationAttempted = false;
             restoreCurrentCache();
         }
-        if (!AiOutfitCache.today().equals(cacheDate(getState()))) {
+        if (!getState().getAiDate().isEmpty()
+                && !AiOutfitCache.today().equals(cacheDate(getState()))) {
             clearInvalidCacheForToday();
+            cacheDecisionPending = true;
+            autoGenerationAttempted = false;
+            restoreCurrentCache();
         }
         refreshOutfitCount();
         wardrobeRepository.refreshAll();
-        if (getState().getWeatherInfo() == null
-                && ApiConfig.isWeatherConfigured(getApplication())
-                && NetworkUtils.isNetworkAvailable(getApplication())) {
-            refreshWeather(false);
+        WeatherInfo current = getState().getWeatherInfo();
+        boolean stale = current == null
+                || System.currentTimeMillis() - current.getFetchedAt()
+                > 30 * 60 * 1000L;
+        if (stale) {
+            if (ApiConfig.isWeatherConfigured(getApplication())
+                    && NetworkUtils.isNetworkAvailable(getApplication())) {
+                ensureWeather();
+            }
         } else {
             maybeAutoGenerate();
         }
@@ -331,6 +381,7 @@ public class MainViewModel extends AndroidViewModel {
             @Override
             public void onSuccess(OutfitRepository.OutfitResult result) {
                 aiRequestInFlight = false;
+                cacheDecisionPending = false;
                 stopLoadingTicker();
                 MainUiState.Builder builder = getState().buildUpon()
                         .aiLoading(false)
@@ -339,8 +390,10 @@ public class MainViewModel extends AndroidViewModel {
                         .aiDate(AiOutfitCache.today())
                         .packingListText(result.getPackingListText())
                         .aiPlans(result.getPlans())
-                        .packingItems(result.getPackingItems())
-                        .scene(result.getScene());
+                        .packingItems(result.getPackingItems());
+                if (RecommendationMode.isTravel(currentMode)) {
+                    builder.scene(result.getScene());
+                }
                 if (result.isPacking()) {
                     builder.contentType(MainUiState.ContentType.PACKING);
                 } else if (!result.getPlans().isEmpty()) {
@@ -358,6 +411,7 @@ public class MainViewModel extends AndroidViewModel {
             @Override
             public void onNoCache() {
                 aiRequestInFlight = false;
+                cacheDecisionPending = false;
                 stopLoadingTicker();
                 publish(getState().buildUpon()
                         .aiLoading(false)
@@ -373,6 +427,7 @@ public class MainViewModel extends AndroidViewModel {
 
             @Override
             public void onError(String message) {
+                cacheDecisionPending = false;
                 finishAiWithError(message);
             }
         };
@@ -397,7 +452,8 @@ public class MainViewModel extends AndroidViewModel {
 
     private void maybeAutoGenerate() {
         MainUiState state = getState();
-        if (state.isAiLoading() || state.getWeatherInfo() == null
+        if (cacheDecisionPending || autoGenerationAttempted
+                || state.isAiLoading() || state.getWeatherInfo() == null
                 || state.isTravelMode()
                 || !state.hasGender()
                 || state.getWardrobeCount() == 0
@@ -405,11 +461,17 @@ public class MainViewModel extends AndroidViewModel {
                 || !NetworkUtils.isNetworkAvailable(getApplication())) {
             return;
         }
+        if (!state.getAiContent().isEmpty()
+                || !state.getAiPlans().isEmpty()
+                || !state.getPackingItems().isEmpty()) {
+            return;
+        }
         long now = System.currentTimeMillis();
         if (now - lastAutoRequestTime < AUTO_AI_DEBOUNCE_MS) {
             return;
         }
         lastAutoRequestTime = now;
+        autoGenerationAttempted = true;
         generateCurrent(false);
     }
 
@@ -433,6 +495,7 @@ public class MainViewModel extends AndroidViewModel {
 
     private void finishAiWithError(String message) {
         aiRequestInFlight = false;
+        cacheDecisionPending = false;
         stopLoadingTicker();
         publishErrorState(message);
         updateStateWithMessage(message);
@@ -507,6 +570,8 @@ public class MainViewModel extends AndroidViewModel {
     private String getRequestedScene(String mode, String scene) {
         return RecommendationMode.isTravel(mode)
                 ? (scene == null ? "" : scene.trim())
+                : (scene == null || scene.trim().isEmpty())
+                ? AiOutfitCache.DEFAULT_SCENE
                 : AiOutfitCache.normalizeScene(scene);
     }
 
@@ -568,6 +633,18 @@ public class MainViewModel extends AndroidViewModel {
 
     private void stopLoadingTicker() {
         mainHandler.removeCallbacks(loadingTicker);
+    }
+
+    private void scheduleMidnightReset() {
+        mainHandler.removeCallbacks(midnightResetRunnable);
+        ZoneId zone = ZoneId.systemDefault();
+        ZonedDateTime now = ZonedDateTime.now(zone);
+        ZonedDateTime nextMidnight = LocalDate.now(zone)
+                .plusDays(1)
+                .atStartOfDay(zone);
+        long delay = Math.max(1000L,
+                Duration.between(now, nextMidnight).toMillis());
+        mainHandler.postDelayed(midnightResetRunnable, delay);
     }
 
     @Override

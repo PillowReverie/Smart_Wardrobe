@@ -1,6 +1,7 @@
 package com.example.wardrobe.util;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.SystemClock;
 import android.util.Log;
 
@@ -31,6 +32,17 @@ public class WeatherManager {
 
     private static final String TAG = "WeatherManager";
     private static final long CACHE_TTL_MS = 30 * 60 * 1000L;
+    private static final String PREFS_NAME = "weather_persistent_cache";
+    private static final String KEY_WEATHER_FETCHED_AT = "weather_fetched_at";
+    private static final String KEY_WEATHER_MIN = "weather_min";
+    private static final String KEY_WEATHER_MAX = "weather_max";
+    private static final String KEY_WEATHER_CONDITION = "weather_condition";
+    private static final String KEY_WEATHER_UV = "weather_uv";
+    private static final String KEY_WEATHER_WIND = "weather_wind";
+    private static final String KEY_LOCATION_NAME = "location_name";
+    private static final String KEY_LOCATION_FETCHED_AT = "location_fetched_at";
+    private static final String KEY_LOCATION_LAT = "location_lat";
+    private static final String KEY_LOCATION_LON = "location_lon";
     private static volatile WeatherManager instance;
 
     private WeatherInfo cachedWeather;
@@ -76,36 +88,49 @@ public class WeatherManager {
     /**
      * 返回 30 分钟内缓存的数据，没有有效缓存时返回 null。
      */
-    public WeatherInfo getCachedWeather() {
+    public WeatherInfo getCachedWeather(Context context) {
+        if (cachedWeather == null) {
+            cachedWeather = loadPersistentWeather(context);
+        }
         if (cachedWeather == null) {
             return null;
         }
-        if (SystemClock.elapsedRealtime() - cacheTime > CACHE_TTL_MS) {
+        long fetchedAt = cachedWeather.getFetchedAt();
+        if (fetchedAt <= 0
+                || System.currentTimeMillis() - fetchedAt > CACHE_TTL_MS) {
             cachedWeather = null;
+            clearPersistentWeather(context);
             return null;
         }
+        cacheTime = SystemClock.elapsedRealtime();
         return cachedWeather;
     }
 
     /**
      * 用户主动下拉刷新时清除内存缓存，确保下一次请求真正访问网络。
      */
-    public void invalidateMemoryCache() {
+    public void invalidateMemoryCache(Context context) {
         cachedWeather = null;
         cacheTime = 0L;
         cachedLocationName = null;
         locationCacheTime = 0L;
+        preferences(context).edit().clear().apply();
     }
 
     /**
      * 获取 30 分钟内的逆地理编码缓存。经纬度变化超过约 1 公里时重新请求，
      * 避免用户移动后仍显示上一个城市。
      */
-    public String getCachedLocationName(double latitude, double longitude) {
+    public String getCachedLocationName(Context context,
+                                        double latitude,
+                                        double longitude) {
+        if (cachedLocationName == null) {
+            loadPersistentLocation(context, latitude, longitude);
+        }
         if (cachedLocationName == null) {
             return null;
         }
-        if (SystemClock.elapsedRealtime() - locationCacheTime > CACHE_TTL_MS) {
+        if (System.currentTimeMillis() - locationCacheTime > CACHE_TTL_MS) {
             cachedLocationName = null;
             return null;
         }
@@ -114,6 +139,21 @@ public class WeatherManager {
             return null;
         }
         return cachedLocationName;
+    }
+
+    /**
+     * 返回 30 分钟内的持久化地名，用于复用缓存天气时直接恢复首页文案。
+     */
+    public String getCachedLocationLabel(Context context) {
+        SharedPreferences preferences = preferences(context);
+        long fetchedAt = preferences.getLong(KEY_LOCATION_FETCHED_AT, 0L);
+        String label = preferences.getString(KEY_LOCATION_NAME, "");
+        if (fetchedAt <= 0
+                || System.currentTimeMillis() - fetchedAt > CACHE_TTL_MS
+                || label == null || label.trim().isEmpty()) {
+            return "";
+        }
+        return label;
     }
 
     /**
@@ -130,7 +170,8 @@ public class WeatherManager {
             return;
         }
 
-        String cached = getCachedLocationName(latitude, longitude);
+        String cached = getCachedLocationName(
+                appContext, latitude, longitude);
         if (cached != null) {
             callback.onSuccess(cached, true);
             return;
@@ -190,9 +231,11 @@ public class WeatherManager {
                 }
 
                 cachedLocationName = displayName;
-                locationCacheTime = SystemClock.elapsedRealtime();
+                locationCacheTime = System.currentTimeMillis();
                 locationCacheLatitude = latitude;
                 locationCacheLongitude = longitude;
+                savePersistentLocation(
+                        appContext, displayName, latitude, longitude);
 
                 callback.onSuccess(displayName, false);
             }
@@ -249,7 +292,7 @@ public class WeatherManager {
      * 优先使用缓存；没有缓存时使用最近一次定位坐标，初始为北京。
      */
     public void getWeather(Context context, Callback callback) {
-        WeatherInfo weather = getCachedWeather();
+        WeatherInfo weather = getCachedWeather(context);
         if (weather != null) {
             callback.onSuccess(weather, true);
             return;
@@ -282,7 +325,7 @@ public class WeatherManager {
             return;
         }
 
-        WeatherInfo cached = forceRefresh ? null : getCachedWeather();
+        WeatherInfo cached = forceRefresh ? null : getCachedWeather(appContext);
         if (cached != null) {
             callback.onSuccess(cached, true);
             return;
@@ -364,6 +407,7 @@ public class WeatherManager {
                         System.currentTimeMillis());
                 cachedWeather = weatherInfo;
                 cacheTime = SystemClock.elapsedRealtime();
+                savePersistentWeather(appContext, weatherInfo);
 
                 callback.onSuccess(weatherInfo, false);
             }
@@ -438,6 +482,7 @@ public class WeatherManager {
                         temperature, condition, System.currentTimeMillis());
                 cachedWeather = weatherInfo;
                 cacheTime = SystemClock.elapsedRealtime();
+                savePersistentWeather(appContext, weatherInfo);
                 callback.onSuccess(weatherInfo, false);
             }
 
@@ -546,5 +591,99 @@ public class WeatherManager {
             return daily.getLegacyWindScaleDay();
         }
         return String.valueOf(maximum);
+    }
+
+    private WeatherInfo loadPersistentWeather(Context context) {
+        SharedPreferences preferences = preferences(context);
+        long fetchedAt = preferences.getLong(KEY_WEATHER_FETCHED_AT, 0L);
+        if (fetchedAt <= 0
+                || System.currentTimeMillis() - fetchedAt > CACHE_TTL_MS) {
+            clearPersistentWeather(context);
+            return null;
+        }
+        String condition = preferences.getString(KEY_WEATHER_CONDITION, "");
+        if (condition == null || condition.trim().isEmpty()) {
+            return null;
+        }
+        return new WeatherInfo(
+                preferences.getInt(KEY_WEATHER_MIN, 0),
+                preferences.getInt(KEY_WEATHER_MAX, 0),
+                condition,
+                preferences.getInt(KEY_WEATHER_UV, 0),
+                preferences.getString(KEY_WEATHER_WIND, ""),
+                fetchedAt
+        );
+    }
+
+    private void savePersistentWeather(Context context,
+                                       WeatherInfo weatherInfo) {
+        if (weatherInfo == null) {
+            return;
+        }
+        preferences(context).edit()
+                .putLong(KEY_WEATHER_FETCHED_AT, weatherInfo.getFetchedAt())
+                .putInt(KEY_WEATHER_MIN, weatherInfo.getTempMin())
+                .putInt(KEY_WEATHER_MAX, weatherInfo.getTempMax())
+                .putString(KEY_WEATHER_CONDITION,
+                        weatherInfo.getConditionText())
+                .putInt(KEY_WEATHER_UV, weatherInfo.getUvIndex())
+                .putString(KEY_WEATHER_WIND, weatherInfo.getWindScale())
+                .apply();
+    }
+
+    private void clearPersistentWeather(Context context) {
+        preferences(context).edit()
+                .remove(KEY_WEATHER_FETCHED_AT)
+                .remove(KEY_WEATHER_MIN)
+                .remove(KEY_WEATHER_MAX)
+                .remove(KEY_WEATHER_CONDITION)
+                .remove(KEY_WEATHER_UV)
+                .remove(KEY_WEATHER_WIND)
+                .apply();
+    }
+
+    private void savePersistentLocation(Context context,
+                                        String name,
+                                        double latitude,
+                                        double longitude) {
+        preferences(context).edit()
+                .putString(KEY_LOCATION_NAME, name)
+                .putLong(KEY_LOCATION_FETCHED_AT, System.currentTimeMillis())
+                .putString(KEY_LOCATION_LAT, String.valueOf(latitude))
+                .putString(KEY_LOCATION_LON, String.valueOf(longitude))
+                .apply();
+    }
+
+    private void loadPersistentLocation(Context context,
+                                        double latitude,
+                                        double longitude) {
+        SharedPreferences preferences = preferences(context);
+        long fetchedAt = preferences.getLong(KEY_LOCATION_FETCHED_AT, 0L);
+        if (fetchedAt <= 0
+                || System.currentTimeMillis() - fetchedAt > CACHE_TTL_MS) {
+            return;
+        }
+        try {
+            double savedLat = Double.parseDouble(
+                    preferences.getString(KEY_LOCATION_LAT, "0"));
+            double savedLon = Double.parseDouble(
+                    preferences.getString(KEY_LOCATION_LON, "0"));
+            if (Math.abs(savedLat - latitude) > 0.01
+                    || Math.abs(savedLon - longitude) > 0.01) {
+                return;
+            }
+            cachedLocationName =
+                    preferences.getString(KEY_LOCATION_NAME, "");
+            locationCacheTime = fetchedAt;
+            locationCacheLatitude = savedLat;
+            locationCacheLongitude = savedLon;
+        } catch (NumberFormatException ignored) {
+            cachedLocationName = null;
+        }
+    }
+
+    private SharedPreferences preferences(Context context) {
+        return context.getApplicationContext()
+                .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
 }

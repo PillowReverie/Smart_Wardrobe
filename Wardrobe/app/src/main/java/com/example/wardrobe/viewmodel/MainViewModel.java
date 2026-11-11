@@ -63,6 +63,7 @@ public class MainViewModel extends AndroidViewModel {
     private long messageSequence;
     private boolean cacheDecisionPending = true;
     private boolean autoGenerationAttempted;
+    private boolean preserveContentAcrossCacheCheck;
     private int loadingStage;
     private final Runnable loadingTicker = new Runnable() {
         @Override
@@ -128,22 +129,32 @@ public class MainViewModel extends AndroidViewModel {
         if (normalized.equals(currentMode)) {
             return;
         }
+        String previousMode = currentMode;
         SceneInputStore.save(getApplication(), currentMode,
                 getState().getScene());
         currentMode = normalized;
         RecommendationMode.save(getApplication(), currentMode);
         String restored = SceneInputStore.get(
                 getApplication(), currentMode);
-        update(state -> state.buildUpon()
-                .mode(currentMode)
-                .scene(restored)
-                .aiLoading(false)
-                .aiContent("")
-                .aiDate("")
-                .aiPlans(Collections.emptyList())
-                .packingItems(Collections.emptyList())
-                .packingListText("")
-                .contentType(MainUiState.ContentType.IDLE));
+        boolean preserveContent =
+                !RecommendationMode.isTravel(previousMode)
+                        && !RecommendationMode.isTravel(currentMode);
+        preserveContentAcrossCacheCheck = preserveContent;
+        update(state -> {
+            MainUiState.Builder builder = state.buildUpon()
+                    .mode(currentMode)
+                    .scene(restored)
+                    .aiLoading(false);
+            if (!preserveContent) {
+                builder.aiContent("")
+                        .aiDate("")
+                        .aiPlans(Collections.emptyList())
+                        .packingItems(Collections.emptyList())
+                        .packingListText("")
+                        .contentType(MainUiState.ContentType.IDLE);
+            }
+            return builder;
+        });
         cancelAi();
         cacheDecisionPending = true;
         autoGenerationAttempted = false;
@@ -382,6 +393,7 @@ public class MainViewModel extends AndroidViewModel {
             public void onSuccess(OutfitRepository.OutfitResult result) {
                 aiRequestInFlight = false;
                 cacheDecisionPending = false;
+                preserveContentAcrossCacheCheck = false;
                 stopLoadingTicker();
                 MainUiState.Builder builder = getState().buildUpon()
                         .aiLoading(false)
@@ -413,6 +425,18 @@ public class MainViewModel extends AndroidViewModel {
                 aiRequestInFlight = false;
                 cacheDecisionPending = false;
                 stopLoadingTicker();
+                if (preserveContentAcrossCacheCheck) {
+                    boolean hasVisibleContent =
+                            !getState().getAiContent().isEmpty()
+                                    || !getState().getAiPlans().isEmpty()
+                                    || !getState().getPackingItems().isEmpty();
+                    if (hasVisibleContent
+                            && startGenerationAfterModeSwitch()) {
+                        preserveContentAcrossCacheCheck = false;
+                        return;
+                    }
+                }
+                preserveContentAcrossCacheCheck = false;
                 publish(getState().buildUpon()
                         .aiLoading(false)
                         .loadingText("")
@@ -425,9 +449,39 @@ public class MainViewModel extends AndroidViewModel {
                 maybeAutoGenerate();
             }
 
+    /**
+     * 模式切换没有缓存时，在保留旧卡片的前提下直接发起新生成，
+     * 避免先清空内容造成闪烁。返回 false 表示前置条件不足。
+     */
+    private boolean startGenerationAfterModeSwitch() {
+        MainUiState state = getState();
+        if (!state.hasGender()
+                || state.getWeatherInfo() == null
+                || state.getWardrobeCount() == 0
+                || state.isTravelMode()
+                || !ApiConfig.isLlmConfigured(getApplication())
+                || !NetworkUtils.isNetworkAvailable(getApplication())) {
+            return false;
+        }
+        autoGenerationAttempted = true;
+        beginAiRequest(false);
+        outfitRepository.generateDaily(
+                getApplication(),
+                state.getWeatherInfo(),
+                currentMode,
+                state.getScene(),
+                currentGender,
+                false,
+                state.getAiContent(),
+                currentSceneOrDefault(state),
+                outfitCallback());
+        return true;
+    }
+
             @Override
             public void onError(String message) {
                 cacheDecisionPending = false;
+                preserveContentAcrossCacheCheck = false;
                 finishAiWithError(message);
             }
         };

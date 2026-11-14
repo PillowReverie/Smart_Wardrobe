@@ -263,8 +263,8 @@ public final class OutfitRepository {
                         R.string.network_unavailable));
                 return;
             }
-            if (!ApiConfig.isLlmConfigured(context)
-                    || !ApiConfig.isWeatherConfigured(context)) {
+            // 天气默认由 Open-Meteo 免费源兜底，不再要求配置和风天气。
+            if (!ApiConfig.isLlmConfigured(context)) {
                 postError(token, callback, context.getString(
                         R.string.api_not_configured));
                 return;

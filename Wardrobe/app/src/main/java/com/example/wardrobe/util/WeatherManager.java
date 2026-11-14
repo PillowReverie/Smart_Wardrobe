@@ -2,6 +2,10 @@ package com.example.wardrobe.util;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.location.Address;
+import android.location.Geocoder;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
 
@@ -17,6 +21,8 @@ import java.io.InterruptedIOException;
 import java.net.SocketTimeoutException;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import retrofit2.Call;
 import retrofit2.Response;
@@ -27,6 +33,10 @@ import retrofit2.Response;
  * <p>负责读取 SharedPreferences 中的天气配置、拼接完整 URL、异步调用 Retrofit，
  * 并在内存中缓存成功的天气结果 30 分钟。首页和详情页共享同一份缓存，
  * 避免重复消耗 API 额度。</p>
+ *
+ * <p>天气采用双源路由：用户配置了和风天气 Host/Key 时保留原接口；
+ * 未配置时自动使用不需要 Key 的 Open-Meteo。两套数据都转换为
+ * {@link WeatherInfo}，因此 UI 和 AI 层无需感知天气来源。</p>
  */
 public class WeatherManager {
 
@@ -52,11 +62,18 @@ public class WeatherManager {
     private Call<WeatherResponse> currentCall;
     private Call<DailyWeatherResponse> currentDailyCall;
     private Call<WeatherGeoResponse> currentGeoCall;
+    private final OpenMeteoWeatherClient openMeteoWeatherClient =
+            new OpenMeteoWeatherClient();
 
     private String cachedLocationName;
     private long locationCacheTime;
     private double locationCacheLatitude;
     private double locationCacheLongitude;
+    private int locationRequestToken;
+    private final ExecutorService geocoderExecutor =
+            Executors.newSingleThreadExecutor();
+    private final Handler mainHandler =
+            new Handler(Looper.getMainLooper());
 
     private WeatherManager() {
         // 单例，禁止外部实例化。
@@ -114,6 +131,8 @@ public class WeatherManager {
         cacheTime = 0L;
         cachedLocationName = null;
         locationCacheTime = 0L;
+        // 清理旧天气源留下的缓存。切换和风/Open-Meteo 配置后，
+        // 下一次刷新不会误用另一个来源的旧结果。
         preferences(context).edit().clear().apply();
     }
 
@@ -165,15 +184,16 @@ public class WeatherManager {
                                   double longitude,
                                   LocationCallback callback) {
         Context appContext = context.getApplicationContext();
-        if (!ApiConfig.isWeatherConfigured(appContext)) {
-            callback.onError(appContext.getString(R.string.weather_not_configured));
-            return;
-        }
-
         String cached = getCachedLocationName(
                 appContext, latitude, longitude);
         if (cached != null) {
             callback.onSuccess(cached, true);
+            return;
+        }
+
+        if (!ApiConfig.isWeatherConfigured(appContext)) {
+            fetchOpenMeteoLocationName(
+                    appContext, latitude, longitude, callback);
             return;
         }
 
@@ -256,6 +276,70 @@ public class WeatherManager {
     }
 
     /**
+     * Open-Meteo 路由下的地名来源。
+     *
+     * <p>系统 Geocoder 是同步 API，放到单线程池执行。失败时返回“当前位置”，
+     * 不让地名解析阻断天气卡片。</p>
+     */
+    private void fetchOpenMeteoLocationName(Context appContext,
+                                            double latitude,
+                                            double longitude,
+                                            LocationCallback callback) {
+        final int requestToken = ++locationRequestToken;
+        geocoderExecutor.execute(() -> {
+            String displayName = appContext.getString(
+                    R.string.home_weather_location);
+            try {
+                if (Geocoder.isPresent()) {
+                    Geocoder geocoder = new Geocoder(
+                            appContext, Locale.getDefault());
+                    List<Address> addresses =
+                            geocoder.getFromLocation(latitude, longitude, 1);
+                    if (addresses != null && !addresses.isEmpty()) {
+                        Address address = addresses.get(0);
+                        String province = firstNonEmpty(
+                                address.getAdminArea(),
+                                address.getSubAdminArea());
+                        String city = firstNonEmpty(
+                                address.getLocality(),
+                                address.getSubLocality(),
+                                address.getFeatureName());
+                        String formatted = formatLocationName(province, city);
+                        if (!formatted.isEmpty()) {
+                            displayName = formatted;
+                        }
+                    }
+                }
+            } catch (IOException | SecurityException exception) {
+                Log.e(TAG, "Geocoder 获取地名失败，使用当前位置兜底", exception);
+            }
+
+            final String result = displayName;
+            mainHandler.post(() -> {
+                if (requestToken != locationRequestToken) {
+                    return;
+                }
+                cachedLocationName = result;
+                locationCacheTime = System.currentTimeMillis();
+                locationCacheLatitude = latitude;
+                locationCacheLongitude = longitude;
+                savePersistentLocation(appContext, result,
+                        latitude, longitude);
+                callback.onSuccess(result, false);
+            });
+        });
+    }
+
+    private String firstNonEmpty(String... values) {
+        for (String value : values) {
+            if (value != null && !value.trim().isEmpty()) {
+                return value.trim();
+            }
+        }
+        return "";
+    }
+
+    /**
      * 组合省份和城市/区县，并避免出现“北京市 北京市”这类重复展示。
      */
     static String formatLocationName(String province, String city) {
@@ -286,6 +370,17 @@ public class WeatherManager {
             currentGeoCall.cancel();
             currentGeoCall = null;
         }
+        openMeteoWeatherClient.cancel();
+        locationRequestToken++;
+    }
+
+    /**
+     * 应用进程结束时关闭地名线程。天气调用由 Retrofit 自身管理，
+     * 这里只释放项目创建的 Geocoder 线程，避免线程泄漏。
+     */
+    public void shutdown() {
+        cancelActiveCalls();
+        geocoderExecutor.shutdownNow();
     }
 
     /**
@@ -320,14 +415,16 @@ public class WeatherManager {
                              boolean forceRefresh,
                              Callback callback) {
         Context appContext = context.getApplicationContext();
-        if (!ApiConfig.isWeatherConfigured(appContext)) {
-            callback.onError(appContext.getString(R.string.weather_not_configured));
-            return;
-        }
-
         WeatherInfo cached = forceRefresh ? null : getCachedWeather(appContext);
         if (cached != null) {
             callback.onSuccess(cached, true);
+            return;
+        }
+
+        lastLatitude = latitude;
+        lastLongitude = longitude;
+        if (!ApiConfig.isWeatherConfigured(appContext)) {
+            fetchOpenMeteoWeather(appContext, latitude, longitude, callback);
             return;
         }
 
@@ -339,9 +436,6 @@ public class WeatherManager {
                 .replace("{lat}", latitudeText)
                 .replace("{lon}", longitudeText);
         String fullUrl = host + path;
-
-        lastLatitude = latitude;
-        lastLongitude = longitude;
 
         if (currentDailyCall != null) {
             currentDailyCall.cancel();
@@ -422,6 +516,33 @@ public class WeatherManager {
                         appContext, latitudeText, longitudeText, callback);
             }
         });
+    }
+
+    /**
+     * 路由 B：Open-Meteo 每日天气。主客户端只负责统一缓存和回调，
+     * 具体请求与 WMO 映射交给独立客户端。
+     */
+    private void fetchOpenMeteoWeather(Context appContext,
+                                       double latitude,
+                                       double longitude,
+                                       Callback callback) {
+        openMeteoWeatherClient.fetchDaily(latitude, longitude,
+                new OpenMeteoWeatherClient.Callback() {
+                    @Override
+                    public void onSuccess(WeatherInfo weatherInfo) {
+                        cachedWeather = weatherInfo;
+                        cacheTime = SystemClock.elapsedRealtime();
+                        savePersistentWeather(appContext, weatherInfo);
+                        callback.onSuccess(weatherInfo, false);
+                    }
+
+                    @Override
+                    public void onError(boolean timeout) {
+                        callback.onError(appContext.getString(timeout
+                                ? R.string.weather_timeout
+                                : R.string.weather_load_failed));
+                    }
+                });
     }
 
     /**

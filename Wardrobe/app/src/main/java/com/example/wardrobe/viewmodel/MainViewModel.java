@@ -353,8 +353,7 @@ public class MainViewModel extends AndroidViewModel {
                 || System.currentTimeMillis() - current.getFetchedAt()
                 > 30 * 60 * 1000L;
         if (stale) {
-            if (ApiConfig.isWeatherConfigured(getApplication())
-                    && NetworkUtils.isNetworkAvailable(getApplication())) {
+            if (NetworkUtils.isNetworkAvailable(getApplication())) {
                 ensureWeather();
             }
         } else {
@@ -382,11 +381,6 @@ public class MainViewModel extends AndroidViewModel {
                     currentGender,
                     outfitCallback());
         } else {
-            if (!ApiConfig.isWeatherConfigured(getApplication())) {
-                finishAiWithError(getApplication().getString(
-                        R.string.weather_not_configured));
-                return;
-            }
             outfitRepository.generateTravelPacking(
                     getApplication(),
                     state.getScene(),
@@ -471,7 +465,6 @@ public class MainViewModel extends AndroidViewModel {
         }
         if (!state.hasGender()
                 || !ApiConfig.isLlmConfigured(getApplication())
-                || !ApiConfig.isWeatherConfigured(getApplication())
                 || !NetworkUtils.isNetworkAvailable(getApplication())) {
             return false;
         }

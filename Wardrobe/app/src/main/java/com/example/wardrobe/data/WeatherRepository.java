@@ -47,12 +47,6 @@ public final class WeatherRepository {
             callback.onFinished();
             return;
         }
-        if (!ApiConfig.isWeatherConfigured(appContext)) {
-            callback.onError(appContext.getString(
-                    R.string.weather_not_configured));
-            callback.onFinished();
-            return;
-        }
         if (forceRefresh) {
             weatherManager.invalidateMemoryCache(appContext);
         }

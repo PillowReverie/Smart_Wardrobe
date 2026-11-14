@@ -2,7 +2,7 @@
 
 一个完全使用 Java 编写的 Android 穿搭助手：衣橱数据保存在本机 SQLite 中，结合定位天气与兼容 OpenAI Chat Completions 的大模型，生成适合当天、特定场景或旅行目的地的穿搭与打包建议。
 
-当前版本：**2.2.0** · 最低系统：**Android 8.0（API 26）** · 安装包：[GitHub Releases](../../releases/latest)
+当前版本：**2.1.6** · 最低系统：**Android 8.0（API 26）** · 安装包：[GitHub Releases](../../releases/latest)
 
 ## 功能概览
 
@@ -10,7 +10,7 @@
 | --- | --- |
 | 我的衣橱 | 拍照/相册录入、自由裁剪、分类筛选、名称/颜色模糊搜索、编辑删除 |
 | 智能录入 | AI 视觉识别名称、类别和颜色；后台生成仅供 AI 使用的衣物描述 |
-| 天气 | Open-Meteo 默认源、和风天气选填源、逆地理编码、30 分钟缓存、生活提示 |
+| 天气 | 和风天气每日预报、逆地理编码、30 分钟缓存、下拉刷新、生活提示 |
 | AI 穿搭 | 灵感焕新、经典套装、自定义场景、三套图文方案、独立保存 |
 | 单品搭配 | 从详情页围绕一件衣物生成搭配，并匹配衣橱图片 |
 | 异地游玩 | 解析城市与日期，结合 7 天预报生成打包清单和旅行穿搭 |
@@ -128,7 +128,7 @@ cd Wardrobe
 
 ## 配置服务
 
-天气默认使用无需 Key 的 Open-Meteo，安装后即可获取地点天气。设置页中的和风天气为选填项，填写 Host/Key 后会自动优先使用和风天气。应用源码不包含真实 API Key。安装后进入首页右上角菜单 → 设置，可填写：
+应用源码不包含真实 API Key。安装后进入首页右上角菜单 → 设置，填写：
 
 - 和风天气 Host
 - 和风天气 Key
@@ -154,29 +154,17 @@ LLM Base URL 可以填写服务根地址，应用会自动补齐 `/chat/completi
 
 从 GitHub Releases 下载：
 
-- `SmartWardrobe-v2.2.0-release.apk`：正式版，可使用同一签名的旧正式版直接覆盖升级。
-- `SmartWardrobe-v2.2.0-beta.final.apk`：最终测试版，详情页额外显示 AI 隐藏描述。
+- `SmartWardrobe-v2.1.6-release.apk`：正式版，可使用同一签名的旧正式版直接覆盖升级。
+- `SmartWardrobe-v2.1.6-beta.final.apk`：最终测试版，详情页额外显示 AI 隐藏描述。
 
 ```bash
-adb install -r SmartWardrobe-v2.2.0-release.apk
+adb install -r SmartWardrobe-v2.1.6-release.apk
 ```
 
 安装包校验值见 [`outputs/`](outputs/) 中的 `.sha256` 文件，或使用：
 
 ```bash
-sha256sum -c outputs/SmartWardrobe-v2.2.0-release.apk.sha256
-```
-
-Release SHA-256：
-
-```text
-8753ef7c5a890bc6636c990bde3ecb51cdf5eec59fd82626755e5e608f58f960
-```
-
-Beta SHA-256：
-
-```text
-cd709272d3b141f0134e82ca949b670aa5a9aa85ed67b8c823a141e6f553c753
+sha256sum -c outputs/SmartWardrobe-v2.1.6-release.apk.sha256
 ```
 
 ## 测试

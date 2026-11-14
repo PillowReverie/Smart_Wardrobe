@@ -519,10 +519,6 @@ public class AboutActivity extends BaseActivity {
 
         ApiConfig.saveApiConfig(
                 this, weatherHost, weatherKey, llmBaseUrl, llmApiKey, llmModelName);
-        // 切换天气源后清除旧天气缓存，避免下一次刷新继续展示另一来源的数据。
-        com.example.wardrobe.util.WeatherManager
-                .getInstance()
-                .invalidateMemoryCache(this);
         loadApiConfig();
         UiUtils.showMessage(rootView, getString(R.string.llm_saved));
     }
@@ -534,9 +530,6 @@ public class AboutActivity extends BaseActivity {
                 .setNegativeButton(R.string.action_cancel, null)
                 .setPositiveButton(R.string.action_confirm, (dialog, which) -> {
                     ApiConfig.clearApiConfig(this);
-                    com.example.wardrobe.util.WeatherManager
-                            .getInstance()
-                            .invalidateMemoryCache(this);
                     loadApiConfig();
                     UiUtils.showMessage(rootView,
                             getString(R.string.llm_reset_done));
@@ -548,7 +541,7 @@ public class AboutActivity extends BaseActivity {
         String configured = getString(R.string.settings_configured);
         String missing = getString(R.string.settings_missing);
         String weatherStatus = ApiConfig.isWeatherConfigured(this)
-                ? configured : getString(R.string.settings_weather_open_meteo);
+                ? configured : missing;
         String llmStatus = ApiConfig.isLlmConfigured(this)
                 ? configured : missing;
         configStatusText.setText(getString(

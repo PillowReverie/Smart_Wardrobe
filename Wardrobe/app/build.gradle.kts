@@ -94,8 +94,6 @@ configurations.configureEach {
 
 dependencies {
     implementation("com.github.yalantis:ucrop:2.2.8")
-    // 公共 Maven 版 pinyin4j，把中文城市转成连续拼音后交给 Open-Meteo。
-    implementation("com.belerweb:pinyin4j:2.5.1")
     implementation(libs.annotation)
     implementation(libs.errorprone)
     implementation(libs.activity)

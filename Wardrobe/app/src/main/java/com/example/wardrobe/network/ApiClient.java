@@ -16,7 +16,6 @@ import retrofit2.converter.gson.GsonConverterFactory;
 public final class ApiClient {
 
     private static volatile WeatherService weatherService;
-    private static volatile OpenMeteoService openMeteoService;
     private static volatile LLMApi llmApi;
 
     private ApiClient() {
@@ -45,33 +44,6 @@ public final class ApiClient {
             }
         }
         return weatherService;
-    }
-
-    /**
-     * Open-Meteo 使用独立的免费天气客户端，不发送任何密钥请求头。
-     */
-    public static OpenMeteoService getOpenMeteoService() {
-        if (openMeteoService == null) {
-            synchronized (ApiClient.class) {
-                if (openMeteoService == null) {
-                    OkHttpClient client = new OkHttpClient.Builder()
-                            .connectTimeout(20, TimeUnit.SECONDS)
-                            .readTimeout(20, TimeUnit.SECONDS)
-                            .callTimeout(30, TimeUnit.SECONDS)
-                            .retryOnConnectionFailure(true)
-                            .build();
-
-                    Retrofit retrofit = new Retrofit.Builder()
-                            .baseUrl("https://open-meteo-placeholder.invalid/")
-                            .client(client)
-                            .addConverterFactory(GsonConverterFactory.create())
-                            .build();
-
-                    openMeteoService = retrofit.create(OpenMeteoService.class);
-                }
-            }
-        }
-        return openMeteoService;
     }
 
     /**

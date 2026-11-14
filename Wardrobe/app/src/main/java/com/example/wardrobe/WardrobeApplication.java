@@ -9,17 +9,6 @@ import com.example.wardrobe.util.ThemeManager;
  */
 public class WardrobeApplication extends Application {
 
-    /**
-     * 进程退出时释放天气模块的后台地名线程。
-     */
-    @Override
-    public void onTerminate() {
-        com.example.wardrobe.util.WeatherManager
-                .getInstance()
-                .shutdown();
-        super.onTerminate();
-    }
-
     @Override
     public void onCreate() {
         super.onCreate();

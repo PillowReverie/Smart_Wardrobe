@@ -18,15 +18,13 @@ import retrofit2.Response;
 /**
  * 异地游玩天气服务。
  *
- * <p>配置和风天气时，先通过 GeoAPI 把城市名解析成 Location ID，再请求
- * 七天预报；未配置时自动使用 Open-Meteo Geocoding 和七日天气。两条路由
- * 都返回统一的中文天气摘要，供旅行 Prompt 使用。</p>
+ * <p>先通过 GeoAPI 把城市名解析成 Location ID，再请求七天预报。
+ * 如果当前 Host 不支持 v7 七天接口，则回退到项目已有的按经纬度
+ * 每日预报接口，保证旅行模式仍能拿到目的地天气。</p>
  */
 public final class TravelWeatherService {
 
     private static final String TAG = "TravelWeatherService";
-    private static final OpenMeteoTravelClient openMeteoTravelClient =
-            new OpenMeteoTravelClient();
     private static Call<WeatherGeoResponse> geoCall;
     private static Call<WeeklyWeatherResponse> weeklyCall;
     private static Call<DailyWeatherResponse> dailyCall;
@@ -45,7 +43,7 @@ public final class TravelWeatherService {
                              Callback callback) {
         Context appContext = context.getApplicationContext();
         if (!ApiConfig.isWeatherConfigured(appContext)) {
-            fetchOpenMeteo(appContext, city, callback);
+            callback.onError(appContext.getString(R.string.weather_not_configured));
             return;
         }
         String host = ApiConfig.getWeatherBaseUrl(appContext);
@@ -93,33 +91,6 @@ public final class TravelWeatherService {
                 }
             }
         });
-    }
-
-    /**
-     * 路由 B：Open-Meteo 城市搜索 + 七天天气。
-     */
-    private static void fetchOpenMeteo(Context context,
-                                       String city,
-                                       Callback callback) {
-        openMeteoTravelClient.fetch(city,
-                new OpenMeteoTravelClient.Callback() {
-                    @Override
-                    public void onSuccess(String cityName,
-                                          String weatherSummary) {
-                        callback.onSuccess(cityName, weatherSummary);
-                    }
-
-                    @Override
-                    public void onCityNotFound() {
-                        callback.onError(context.getString(
-                                R.string.weather_city_pinyin_hint));
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        callback.onError(message);
-                    }
-                });
     }
 
     private static void fetchWeekly(Context context,
@@ -309,7 +280,6 @@ public final class TravelWeatherService {
     }
 
     public static void cancel() {
-        openMeteoTravelClient.cancel();
         if (geoCall != null) {
             geoCall.cancel();
             geoCall = null;

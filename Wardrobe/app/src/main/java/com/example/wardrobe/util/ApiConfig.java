@@ -8,9 +8,10 @@ import java.util.Locale;
 /**
  * 第三方接口配置中心。
  *
- * <p>源码中不保存任何真实 API Key。天气默认使用无需 Key 的 Open-Meteo；
- * 用户填写和风天气配置后，天气层自动优先使用和风天气。大模型仍由用户
- * 在设置页填写并保存到本机 SharedPreferences。</p>
+ * <p>源码中不保存任何真实 API Key。和风天气和大模型配置都由用户在“设置”
+ * 页面填写，并保存到本机 SharedPreferences。网络请求前必须先通过
+ * {@link #isWeatherConfigured(Context)} 或 {@link #isLlmConfigured(Context)}
+ * 检查配置，未配置时由调用页面提示用户。</p>
  */
 public final class ApiConfig {
 
@@ -33,13 +34,6 @@ public final class ApiConfig {
     /* ------------------------------ 固定接口约定 ------------------------------ */
 
     public static final String WEATHER_API_KEY_HEADER = "X-QW-Api-Key";
-
-    public static final String OPEN_METEO_FORECAST_URL =
-            "https://api.open-meteo.com/v1/forecast";
-    public static final String OPEN_METEO_CURRENT_URL =
-            "https://api.open-meteo.com/v1/current";
-    public static final String OPEN_METEO_GEOCODING_URL =
-            "https://geocoding-api.open-meteo.com/v1/search";
 
     /**
      * 注意：和风天气接口要求纬度在前、经度在后。
@@ -96,8 +90,7 @@ public final class ApiConfig {
     }
 
     /**
-     * 和风天气 Host 与 Key 都填写后，天气路由才优先使用和风天气。
-     * 未配置不再阻止天气请求，而是自动使用 Open-Meteo 免费源。
+     * 和风天气 Host 与 Key 都填写后才算配置完成。
      */
     public static boolean isWeatherConfigured(Context context) {
         return !getWeatherBaseUrl(context).isEmpty()

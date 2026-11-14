@@ -100,7 +100,7 @@ public class MainActivity extends BaseActivity {
                             UiUtils.showMessage(rootView, getString(
                                     R.string.permission_location_denied));
                         }
-                        mainViewModel.refreshWeather(false);
+                        mainViewModel.ensureWeather();
                     });
 
     @Override
@@ -234,7 +234,7 @@ public class MainActivity extends BaseActivity {
                 this, Manifest.permission.ACCESS_COARSE_LOCATION)
                 == PackageManager.PERMISSION_GRANTED;
         if (granted) {
-            mainViewModel.refreshWeather(false);
+            mainViewModel.ensureWeather();
         } else {
             locationPermissionLauncher.launch(new String[]{
                     Manifest.permission.ACCESS_FINE_LOCATION,

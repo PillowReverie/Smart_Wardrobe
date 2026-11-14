@@ -173,7 +173,10 @@
                     android:layout_height="wrap_content"
                     android:hint="@string/add_category_hint"
                     android:inputType="none"
-                    android:maxLines="1" />
+                    android:maxLines="1"
+                    android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textColorHint="?attr/colorOnSurfaceVariant" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout

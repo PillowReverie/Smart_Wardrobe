@@ -30,7 +30,12 @@ public final class WeatherRepository {
 
     private final WeatherManager weatherManager =
             WeatherManager.getInstance();
+    private final Context appContext;
     private int requestToken;
+
+    public WeatherRepository(Context context) {
+        appContext = context.getApplicationContext();
+    }
 
     public void refresh(Context context,
                         boolean forceRefresh,
@@ -49,7 +54,7 @@ public final class WeatherRepository {
             return;
         }
         if (forceRefresh) {
-            weatherManager.invalidateMemoryCache();
+            weatherManager.invalidateMemoryCache(appContext);
         }
 
         LocationHelper.requestCurrentLocation(appContext,
@@ -124,7 +129,11 @@ public final class WeatherRepository {
     }
 
     public WeatherInfo getCachedWeather() {
-        return weatherManager.getCachedWeather();
+        return weatherManager.getCachedWeather(appContext);
+    }
+
+    public String getCachedLocationLabel() {
+        return weatherManager.getCachedLocationLabel(appContext);
     }
 
     public void cancel() {

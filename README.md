@@ -1,6 +1,6 @@
 # 智能衣橱与 AI 穿搭助手
 
-- 当前版本：2.1.4
+- 当前版本：2.1.5
 - 平台：Android 8.0（API 26）及以上
 - 语言：Java
 - 工程：`Wardrobe/`
@@ -114,31 +114,31 @@ D:\Workspace\Projects\Project-005-SmartAIWardrobe\Wardrobe
 
 ## 安装包
 
-- `outputs/SmartWardrobe-v2.1.4-release.apk`：正式版，包名 `com.example.wardrobe`
-- `outputs/SmartWardrobe-v2.1.4-beta.final.apk`：最终测试版，包名 `com.example.wardrobe.beta`
+- `outputs/SmartWardrobe-v2.1.5-release.apk`：正式版，包名 `com.example.wardrobe`
+- `outputs/SmartWardrobe-v2.1.5-beta.final.apk`：最终测试版，包名 `com.example.wardrobe.beta`
 
 Release SHA-256：
 
 ```text
-480180009845843e4e33c0496c98f5cd5ca752ffcac57f94b13e64ba277fd264
+e7ddbca539bad46df943d18464b60fc8d116175e1a9631e7a74367ae57543143
 ```
 
 Beta SHA-256：
 
 ```text
-5f5081559c307c4aded73d1486d9281cf2b27241401e37a2b9c08da24a7969e9
+7717f28e9363d7b006b61e3d087cbb584276b2751f218152fea8a31d7611b84b
 ```
 
 正式版使用固定 Release 签名，可直接覆盖安装旧正式版并保留衣橱、搭配、图片和 API 配置。
 
 ```powershell
-adb install -r outputs\SmartWardrobe-v2.1.4-release.apk
+adb install -r outputs\SmartWardrobe-v2.1.5-release.apk
 ```
 
 需要对照测试时也可以安装 Beta：
 
 ```powershell
-adb install -r outputs\SmartWardrobe-v2.1.4-beta.final.apk
+adb install -r outputs\SmartWardrobe-v2.1.5-beta.final.apk
 ```
 
 ## 验收要点
@@ -148,7 +148,7 @@ adb install -r outputs\SmartWardrobe-v2.1.4-beta.final.apk
 - AI 方案可展示 1～3 套，衣物图片缺失时显示占位图。
 - `deepseek-flash` 能正常返回正文，日志不应出现 `finishReason=length`。
 - 保存搭配后，`outfit_items` 中应存在对应衣物 ID。
-- 覆盖安装 v2.1.4 后，旧版本衣橱、搭配、图片和 API 配置仍然保留。
+- 覆盖安装 v2.1.5 后，旧版本衣橱、搭配、图片和 API 配置仍然保留。
 - 旅行衣橱通过长按衣物或打包卡按钮加入/移出；清空只重置旅行标记。
 - 打包清单正文不再重复衣物图片区内容，洗护与证件以单行紧凑展示。
 - 点击照片卡片应弹出“拍照 / 从相册选择”底部弹窗。

@@ -1,9 +1,9 @@
-智能衣橱 v2.1.4 - 安装与首次使用说明
+智能衣橱 v2.1.5 - 安装与首次使用说明
 
 安装要求
 1. Android 8.0（API 26）或更高版本。
-2. 日常使用请安装 SmartWardrobe-v2.1.4-release.apk；
-   如需查看 AI 隐藏描述，请安装 SmartWardrobe-v2.1.4-beta.final.apk。
+2. 日常使用请安装 SmartWardrobe-v2.1.5-release.apk；
+   如需查看 AI 隐藏描述，请安装 SmartWardrobe-v2.1.5-beta.final.apk。
 3. 在手机上打开 APK；如果系统提示，请允许“安装未知应用”。
 
 首次使用
@@ -15,7 +15,7 @@
 
 覆盖升级
 - 正式版保持包名 com.example.wardrobe，并使用固定的 Release 签名。
-- 已安装 v1.1 / v1.2 / v1.3.x / v1.4.x / v1.5.x / v1.6.x / v1.7.x / v2.0.0 / v2.1.x 正式版的手机可直接覆盖安装 v2.1.4，
+- 已安装 v1.1 / v1.2 / v1.3.x / v1.4.x / v1.5.x / v1.6.x / v1.7.x / v2.0.0 / v2.1.x 正式版的手机可直接覆盖安装 v2.1.5，
   衣橱、搭配和图片会保留，无需卸载。
 - v1.7.0 增加搭配删除与重复保存拦截，并修复裁剪范围和双指旋转问题。
 - AI 识别需要配置支持图片输入的模型，例如 deepseek-flash。

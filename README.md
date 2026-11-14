@@ -28,11 +28,11 @@
 | --- | --- | --- |
 | [![衣物详情](docs/screenshots/thumbs/04-item-detail.jpg)](docs/screenshots/04-item-detail.jpg) | [![添加衣物](docs/screenshots/thumbs/05-add-item.jpg)](docs/screenshots/05-add-item.jpg) | [![深色模式](docs/screenshots/thumbs/06-dark-mode.jpg)](docs/screenshots/06-dark-mode.jpg) |
 
-| 设置 |
-| --- |
-| [![设置](docs/screenshots/thumbs/07-settings.jpg)](docs/screenshots/07-settings.jpg) |
+| 设置（基础） | 设置（API 配置） | 旅行打包详情 |
+| --- | --- | --- |
+| [![设置（基础）](docs/screenshots/thumbs/07-settings.jpg)](docs/screenshots/07-settings.jpg) | [![设置（API 配置）](docs/screenshots/thumbs/08-settings-api.jpg)](docs/screenshots/08-settings-api.jpg) | [![旅行打包详情](docs/screenshots/thumbs/09-travel-packing.jpg)](docs/screenshots/09-travel-packing.jpg) |
 
-截图使用测试数据，设置页中的天气 Host 已替换为示例地址。
+截图使用测试数据，不包含真实 API Key；设置页中的天气 Host 已替换为示例地址。
 
 ## 技术架构
 

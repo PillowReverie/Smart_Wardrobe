@@ -8,6 +8,8 @@
 | `04-item-detail.jpg` | 衣物详情与单品 AI 搭配 |
 | `05-add-item.jpg` | 添加衣物与照片入口 |
 | `06-dark-mode.jpg` | 深色模式首页 |
-| `07-settings.jpg` | 设置与 API 配置 |
+| `07-settings.jpg` | 设置页基础选项 |
+| `08-settings-api.jpg` | 设置页 API 与数据迁移 |
+| `09-travel-packing.jpg` | 旅行打包清单详情 |
 
 截图使用测试数据，不包含真实 API Key；设置页中的天气 Host 已替换为示例地址。

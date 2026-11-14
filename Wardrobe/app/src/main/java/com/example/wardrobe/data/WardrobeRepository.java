@@ -127,6 +127,31 @@ public final class WardrobeRepository {
         });
     }
 
+    public void getItemById(
+            long itemId,
+            ResultCallback<ClothingItem> callback) {
+        ioExecutor.execute(() -> {
+            try {
+                postResult(callback, wardrobeDao.getItemById(itemId));
+            } catch (RuntimeException exception) {
+                postError(callback, "衣物读取失败，请稍后重试");
+            }
+        });
+    }
+
+    public void deleteItem(
+            long itemId,
+            ResultCallback<Integer> callback) {
+        ioExecutor.execute(() -> {
+            try {
+                postResult(callback, wardrobeDao.deleteItem(itemId));
+                refreshAll();
+            } catch (RuntimeException exception) {
+                postError(callback, "衣物删除失败，请稍后重试");
+            }
+        });
+    }
+
     /**
      * 单件衣物加入或移出旅行箱。
      */

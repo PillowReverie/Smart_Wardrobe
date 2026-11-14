@@ -1,0 +1,57 @@
+name: 缺陷报告
+description: 报告可复现的崩溃、界面或功能问题
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请勿粘贴 API Key、签名文件、真实位置、私人照片或含个人信息的日志。
+
+  - type: input
+    id: version
+    attributes:
+      label: 应用版本
+      placeholder: 2.1.6
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: 设备与系统
+      placeholder: Pixel 8 / Android 16
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开……
+        2. 点击……
+        3. 出现……
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 脱敏日志或截图
+      description: 请移除 API Key、位置、照片和私人数据。
+      render: shell

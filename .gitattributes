@@ -1,0 +1,11 @@
+# Keep Gradle scripts executable and stable across Windows, macOS and Linux.
+gradlew text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+
+# Binary assets must not be normalized or merged as text.
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.webp binary
+*.jar binary

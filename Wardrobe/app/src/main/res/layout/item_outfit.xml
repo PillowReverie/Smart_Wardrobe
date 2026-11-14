@@ -52,7 +52,7 @@
                 android:contentDescription="@string/outfit_delete"
                 android:padding="8dp"
                 android:src="@drawable/ic_delete"
-                android:tint="@color/md_error" />
+                app:tint="@color/md_error" />
         </LinearLayout>
 
         <TextView

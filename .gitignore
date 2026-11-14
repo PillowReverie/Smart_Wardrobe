@@ -13,6 +13,8 @@ captures/
 **/keystore.properties
 **/signing/*.jks
 **/signing/*.keystore
+**/signing/*.p12
+**/signing/*.pfx
 
 # Built installation packages
 outputs/*.apk
@@ -20,8 +22,21 @@ outputs/*.apk
 
 # Temporary analysis, screenshots and extracted artifacts
 work/
+Photo/
 
 # OS and editor noise
 .DS_Store
 Thumbs.db
 *.swp
+*.bak
+*.orig
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Logs and crash dumps
+*.log
+hs_err_pid*
+replay_pid*

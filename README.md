@@ -22,15 +22,15 @@
 
 | 首页 | 我的衣橱 | 异地游玩 |
 | --- | --- | --- |
-| ![首页](docs/screenshots/01-home.jpg) | ![我的衣橱](docs/screenshots/02-wardrobe.jpg) | ![异地游玩](docs/screenshots/03-travel.jpg) |
+| [![首页](docs/screenshots/thumbs/01-home.jpg)](docs/screenshots/01-home.jpg) | [![我的衣橱](docs/screenshots/thumbs/02-wardrobe.jpg)](docs/screenshots/02-wardrobe.jpg) | [![异地游玩](docs/screenshots/thumbs/03-travel.jpg)](docs/screenshots/03-travel.jpg) |
 
 | 衣物详情 | 添加衣物 | 深色模式 |
 | --- | --- | --- |
-| ![衣物详情](docs/screenshots/04-item-detail.jpg) | ![添加衣物](docs/screenshots/05-add-item.jpg) | ![深色模式](docs/screenshots/06-dark-mode.jpg) |
+| [![衣物详情](docs/screenshots/thumbs/04-item-detail.jpg)](docs/screenshots/04-item-detail.jpg) | [![添加衣物](docs/screenshots/thumbs/05-add-item.jpg)](docs/screenshots/05-add-item.jpg) | [![深色模式](docs/screenshots/thumbs/06-dark-mode.jpg)](docs/screenshots/06-dark-mode.jpg) |
 
 | 设置 |
 | --- |
-| ![设置](docs/screenshots/07-settings.jpg) |
+| [![设置](docs/screenshots/thumbs/07-settings.jpg)](docs/screenshots/07-settings.jpg) |
 
 截图使用测试数据，设置页中的天气 Host 已替换为示例地址。
 

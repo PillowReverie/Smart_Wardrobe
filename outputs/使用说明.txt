@@ -1,7 +1,7 @@
-智能衣橱 v2.1.5 使用说明
+智能衣橱 v2.1.6 使用说明
 
 一、安装与升级
-1. 将 SmartWardrobe-v2.1.5-release.apk 发送到 Android 手机。
+1. 将 SmartWardrobe-v2.1.6-release.apk 发送到 Android 手机。
 2. 点击 APK 安装，必要时允许“安装未知应用”。
 3. 正式版沿用包名 com.example.wardrobe 和固定 Release 签名，
    可直接覆盖旧正式版，衣橱、搭配、图片和本机配置会保留。
